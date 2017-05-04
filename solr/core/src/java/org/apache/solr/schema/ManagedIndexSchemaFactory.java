@@ -374,7 +374,13 @@ public class ManagedIndexSchemaFactory extends IndexSchemaFactory implements Sol
   public void inform(SolrCore core) {
     this.core = core;
     if (loader instanceof ZkSolrResourceLoader) {
-      this.zkIndexSchemaReader = new ZkIndexSchemaReader(this, core);
+      final ZkIndexSchemaReader.SchemaWatcher existingSchemaWatcher;
+      if (this.zkIndexSchemaReader != null) {
+        existingSchemaWatcher = this.zkIndexSchemaReader.getSchemaWatcher();
+      } else {
+        existingSchemaWatcher = null;
+      }
+      this.zkIndexSchemaReader = new ZkIndexSchemaReader(this, core, existingSchemaWatcher);
       ZkSolrResourceLoader zkLoader = (ZkSolrResourceLoader)loader;
       zkLoader.setZkIndexSchemaReader(this.zkIndexSchemaReader);
       try {

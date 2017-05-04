@@ -46,7 +46,13 @@ public class ZkIndexSchemaReader implements OnReconnect {
   private final String uniqueCoreId; // used in equals impl to uniquely identify the core that we're dependent on
   private SchemaWatcher schemaWatcher;
 
+  @Deprecated
   public ZkIndexSchemaReader(ManagedIndexSchemaFactory managedIndexSchemaFactory, SolrCore solrCore) {
+    this(managedIndexSchemaFactory, solrCore, null);
+  }
+
+  public ZkIndexSchemaReader(ManagedIndexSchemaFactory managedIndexSchemaFactory, SolrCore solrCore,
+      SchemaWatcher schemaWatcher) {
     this.managedIndexSchemaFactory = managedIndexSchemaFactory;
     ZkSolrResourceLoader zkLoader = (ZkSolrResourceLoader)managedIndexSchemaFactory.getResourceLoader();
     this.zkClient = zkLoader.getZkController().getZkClient();
@@ -69,13 +75,25 @@ public class ZkIndexSchemaReader implements OnReconnect {
       public void postClose(SolrCore core) {}
     });
 
-    this.schemaWatcher = createSchemaWatcher();
+    if (schemaWatcher != null) {
+      this.schemaWatcher = schemaWatcher;
+      this.schemaWatcher.setSchemaReader(this);
+    } else {
+      this.schemaWatcher = createSchemaWatcher();
+    }
 
     zkLoader.getZkController().addOnReconnectListener(this);
   }
 
   public Object getSchemaUpdateLock() { 
     return managedIndexSchemaFactory.getSchemaUpdateLock(); 
+  }
+
+  /**
+   * @return the registered {@linkplain SchemaWatcher}
+   */
+  public SchemaWatcher getSchemaWatcher() {
+    return this.schemaWatcher;
   }
 
   /**
@@ -109,7 +127,7 @@ public class ZkIndexSchemaReader implements OnReconnect {
    */
   public static class SchemaWatcher implements Watcher {
 
-    private final WeakReference<ZkIndexSchemaReader> schemaReader;
+    private WeakReference<ZkIndexSchemaReader> schemaReader;
 
     public SchemaWatcher(ZkIndexSchemaReader reader) {
       this.schemaReader = new WeakReference<ZkIndexSchemaReader>(Objects.requireNonNull(reader));
@@ -142,6 +160,13 @@ public class ZkIndexSchemaReader implements OnReconnect {
         Thread.currentThread().interrupt();
         log.warn("", e);
       }
+    }
+
+    /**
+     * TODO
+     */
+    public void setSchemaReader(ZkIndexSchemaReader reader) {
+      this.schemaReader = new WeakReference<ZkIndexSchemaReader>(Objects.requireNonNull(reader));
     }
 
     /**
