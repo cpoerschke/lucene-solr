@@ -25,6 +25,7 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.Explanation;
 import org.apache.solr.ltr.feature.Feature;
 import org.apache.solr.ltr.norm.Normalizer;
+import org.apache.solr.util.SolrPluginUtils;
 
 /**
  * A scoring model that computes document scores using a neural network.
@@ -39,6 +40,22 @@ import org.apache.solr.ltr.norm.Normalizer;
         { "name" : "originalScore" }
     ],
     "params" : {
+        "layers" : [
+            [
+                { "weights" : [  1.0,  2.0,  3.0 ], "bias" :  4.0 },
+                { "weights" : [  5.0,  6.0,  7.0 ], "bias" :  8.0 },
+                { "weights" : [  9.0, 10.0, 11.0 ], "bias" : 12.0 },
+                { "weights" : [ 13.0, 14.0, 15.0 ], "bias" : 16.0 }
+            ],
+            [
+                { "weights" : [ 13.0, 14.0, 15.0, 16.0 ], "bias" : 17.0 },
+                { "weights" : [ 18.0, 19.0, 20.0, 21.0 ], "bias" : 22.0 }
+            ],
+            [
+                { "weights" : [ 23.0, 24.0 ], "bias" : 25.0, "nonlinearity" : "identity" }
+            ]
+        ],
+        "defaultNonlinearity": "relu",
         "weights" : [
             [ [ 1.0, 2.0, 3.0, 4.0 ], [ 5.0, 6.0, 7.0, 8.0 ], [ 9.0, 10.0, 11.0, 12.0 ], [ 13.0, 14.0, 15.0, 16.0 ] ],
             [ [ 13.0, 14.0, 15.0, 16.0, 17.0 ], [ 18.0, 19.0, 20.0, 21.0, 22.0 ] ],
@@ -62,8 +79,102 @@ import org.apache.solr.ltr.norm.Normalizer;
  */
 public class NeuralNetworkModel extends LTRScoringModel {
 
+  private List<NeuralNetworkLayer> layers;
+  protected String defaultNonlinearity = "identity";
   protected ArrayList<float[][]> weightMatrices;
   protected String nonlinearity;
+
+  public class NeuralNetworkLayer {
+
+    final private List<NeuralNetworkNode> nodes;
+
+    public NeuralNetworkLayer(List<NeuralNetworkNode> nodes) {
+      this.nodes = nodes;
+    }
+
+    /**
+     * Check the validity of this layer's nodes.
+     * @param numInputs - number of inputs for nodes in this layer
+     * @return number of outputs from this layer
+     */
+    public int validate(int numInputs) throws ModelException {
+      for (NeuralNetworkNode node : nodes) {
+        node.validate(numInputs);
+      }
+      return nodes.size();
+    }
+
+    public float[] calculateOutputs(float[] inputs) {
+      final float[] outputs = new float[nodes.size()];
+      for (int ii=0; ii<outputs.length; ++ii) {
+        outputs[ii] = nodes.get(ii).calculateOutput(inputs);
+      }
+      return inputs;
+    }
+
+  }
+
+  public class NeuralNetworkNode {
+
+    private float[] weights;
+    private float bias;
+    private String nonlinearity;
+
+    public NeuralNetworkNode(Map<String,Object> obj) {
+      SolrPluginUtils.invokeSetters(this, obj.entrySet());
+    }
+
+    public void validate(int numInputs) throws ModelException {
+      if (weights.length != numInputs) {
+        throw new ModelException("Too many or too few weights or inputs:"
+            + " weights.length="+Integer.toString(weights.length)
+            + " numInputs="+Integer.toString(numInputs));
+      }
+    }
+
+    public void setWeights(Object obj) {
+      final List<Float> weightsList = (List<Float>) obj;
+      this.weights = new float[weightsList.size()];
+      for (int ii=0; ii<weights.length; ++ii) {
+        this.weights[ii] = weightsList.get(ii);
+      }
+    }
+
+    public void setBias(float bias) {
+      this.bias = bias;
+    }
+
+    public void setNonlinearity(String nonlinearity) {
+      this.nonlinearity = nonlinearity;
+    }
+
+    public float calculateOutput(float[] inputs) {
+        float output = bias;
+        for (int ii = 0; ii < weights.length; ii++) {
+          output += inputs[ii] * weights[ii];
+        }
+        if (nonlinearity == null) {
+          return doNonlinearity(defaultNonlinearity, output);
+        } else {
+          return doNonlinearity(nonlinearity, output);
+        }
+    }
+
+  }
+
+  public void setLayers(Object listOfListsObj) {
+    layers = new ArrayList<NeuralNetworkLayer>();
+    for (final List<Object> listOfObjects : (List<List<Object>>) listOfListsObj) {
+
+      final List<NeuralNetworkNode> nodes = new ArrayList<NeuralNetworkNode>();
+      for (final Object obj : listOfObjects) {
+
+        nodes.add(new NeuralNetworkNode((Map<String,Object>)obj));
+      }
+
+      layers.add(new NeuralNetworkLayer(nodes));
+    }
+  }
 
   public void setWeights(Object weights) {
     final List<List<List<Double>>> matrixList = (List<List<List<Double>>>) weights;
@@ -112,6 +223,19 @@ public class NeuralNetworkModel extends LTRScoringModel {
       return x < 0 ? 0 : x;
     } else {
       return (float) (1 / (1 + Math.exp(-x)));
+    }
+  }
+
+  protected float doNonlinearity(String nonlinearity, float x) {
+    if (nonlinearity.equals("relu")) {
+      return x < 0 ? 0 : x;
+    } else if (nonlinearity.equals("sigmoid")) {
+      return (float) (1 / (1 + Math.exp(-x)));
+    } else if (nonlinearity.equals("identity")) {
+      return x;
+    } else {
+      // should never get here
+      return 0;
     }
   }
 
@@ -179,6 +303,45 @@ public class NeuralNetworkModel extends LTRScoringModel {
       }
     }
 
+    return outputVec[0];
+  }
+
+  protected void validateNonlinearity(String key, String val) throws ModelException {
+    if (!val.matches("relu|sigmoid|identity")) {
+      throw new ModelException("Invalid "+key+" for model " + name + ". " +
+                               "\"" + val + "\" is not \"relu\" or \"sigmoid\" or \"identity\".");
+    }
+  }
+
+  protected void altValidate() throws ModelException {
+    super.validate();
+
+    validateNonlinearity("defaultNonlinearity", this.defaultNonlinearity);
+
+    int numOutputs = features.size();
+
+    int numLayers = 0;
+    for (NeuralNetworkLayer layer : this.layers) {
+      try {
+        numOutputs = layer.validate(numOutputs);
+      } catch (ModelException me) {
+        throw new ModelException("Model " + name + " layer #" + Integer.toString(numLayers)
+        + " validation failed.", me);
+      }
+      ++numLayers;
+    }
+
+    if (numOutputs != 1) {
+      throw new ModelException("Final layer for model " + name + " has " + Integer.toString(numOutputs) +
+                               " outputs, but should have only 1 output.");
+    }
+  }
+
+  public float altScore(float[] inputFeatures) {
+    float[] outputVec = inputFeatures;
+    for (NeuralNetworkLayer layer : this.layers) {
+      outputVec = layer.calculateOutputs(outputVec);
+    }
     return outputVec[0];
   }
 
