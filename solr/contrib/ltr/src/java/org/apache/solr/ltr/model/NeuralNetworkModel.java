@@ -18,6 +18,7 @@ package org.apache.solr.ltr.model;
 
 import java.lang.Math;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +41,11 @@ import org.apache.solr.util.SolrPluginUtils;
         { "name" : "originalScore" }
     ],
     "params" : {
+        "inputs" : [
+            "documentRecency",
+            "isBook",
+            "originalScore"
+        ],
         "layers" : [
             [
                 { "weights" : [  1.0,  2.0,  3.0 ], "bias" :  4.0 },
@@ -50,12 +56,9 @@ import org.apache.solr.util.SolrPluginUtils;
             [
                 { "weights" : [ 13.0, 14.0, 15.0, 16.0 ], "bias" : 17.0 },
                 { "weights" : [ 18.0, 19.0, 20.0, 21.0 ], "bias" : 22.0 }
-            ],
-            [
-                { "weights" : [ 23.0, 24.0 ], "bias" : 25.0, "nonlinearity" : "identity" }
             ]
         ],
-        "defaultNonlinearity": "relu",
+        "output" : { "weights" : [ 23.0, 24.0 ], "bias" : 25.0 }
         "weights" : [
             [ [ 1.0, 2.0, 3.0, 4.0 ], [ 5.0, 6.0, 7.0, 8.0 ], [ 9.0, 10.0, 11.0, 12.0 ], [ 13.0, 14.0, 15.0, 16.0 ] ],
             [ [ 13.0, 14.0, 15.0, 16.0, 17.0 ], [ 18.0, 19.0, 20.0, 21.0, 22.0 ] ],
@@ -79,8 +82,10 @@ import org.apache.solr.util.SolrPluginUtils;
  */
 public class NeuralNetworkModel extends LTRScoringModel {
 
+  private List<String> inputFeatureNames;
+  private int[] inputFeatureIndices;
   private List<NeuralNetworkLayer> layers;
-  protected String defaultNonlinearity = "identity";
+  private NeuralNetworkNode output;
   protected ArrayList<float[][]> weightMatrices;
   protected String nonlinearity;
 
@@ -107,7 +112,7 @@ public class NeuralNetworkModel extends LTRScoringModel {
     public float[] calculateOutputs(float[] inputs) {
       final float[] outputs = new float[nodes.size()];
       for (int ii=0; ii<outputs.length; ++ii) {
-        outputs[ii] = nodes.get(ii).calculateOutput(inputs);
+        outputs[ii] = doNonlinearity(nodes.get(ii).calculateOutput(inputs));
       }
       return inputs;
     }
@@ -118,7 +123,6 @@ public class NeuralNetworkModel extends LTRScoringModel {
 
     private float[] weights;
     private float bias;
-    private String nonlinearity;
 
     public NeuralNetworkNode(Map<String,Object> obj) {
       SolrPluginUtils.invokeSetters(this, obj.entrySet());
@@ -144,22 +148,34 @@ public class NeuralNetworkModel extends LTRScoringModel {
       this.bias = bias;
     }
 
-    public void setNonlinearity(String nonlinearity) {
-      this.nonlinearity = nonlinearity;
-    }
-
     public float calculateOutput(float[] inputs) {
         float output = bias;
         for (int ii = 0; ii < weights.length; ii++) {
           output += inputs[ii] * weights[ii];
         }
-        if (nonlinearity == null) {
-          return doNonlinearity(defaultNonlinearity, output);
-        } else {
-          return doNonlinearity(nonlinearity, output);
-        }
+        return output;
     }
 
+  }
+
+  public void setInputs(Object inputs) {
+    // map features' names to indices
+    final HashMap<String,Integer> featureName2featureIndex = new HashMap<String,Integer>();
+    for (int i = 0; i < features.size(); ++i) {
+      final String key = features.get(i).getName();
+      featureName2featureIndex.put(key, i);
+    }
+    // note: a feature name could appear multiple times in the inputs
+    inputFeatureNames = (List<String>) inputs;
+    inputFeatureIndices = new int[inputFeatureNames.size()];
+    for (int ii=0; ii<inputFeatureIndices.length; ++ii) {
+      final Integer idx = featureName2featureIndex.get(inputFeatureNames.get(ii));
+      if (idx != null) {
+        inputFeatureIndices[ii] = idx.intValue();
+      } else {
+        inputFeatureIndices[ii] = -1; // unknown feature
+      }
+    }
   }
 
   public void setLayers(Object listOfListsObj) {
@@ -174,6 +190,10 @@ public class NeuralNetworkModel extends LTRScoringModel {
 
       layers.add(new NeuralNetworkLayer(nodes));
     }
+  }
+
+  public void setOutput(Object obj) {
+    this.output = new NeuralNetworkNode((Map<String,Object>)obj);
   }
 
   public void setWeights(Object weights) {
@@ -316,9 +336,20 @@ public class NeuralNetworkModel extends LTRScoringModel {
   protected void altValidate() throws ModelException {
     super.validate();
 
-    validateNonlinearity("defaultNonlinearity", this.defaultNonlinearity);
+    if (inputFeatureNames.size() != inputFeatureIndices.length) {
+      throw new ModelException("Model " + name
+      + " inputFeatureNames.size()=" + Integer.toString(inputFeatureNames.size())
+      + " inputFeatureIndices.length=" + Integer.toString(inputFeatureIndices.length));
+    }
 
-    int numOutputs = features.size();
+    for (int ii=0; ii<inputFeatureNames.size(); ++ii) {
+      if (inputFeatureIndices[ii] < 0) {
+        throw new ModelException("Model " + name + " input #" + Integer.toString(ii)
+        + " ("+inputFeatureNames.get(ii)+") is not a model feature");
+      }
+    }
+
+    int numOutputs = inputFeatureNames.size();
 
     int numLayers = 0;
     for (NeuralNetworkLayer layer : this.layers) {
@@ -331,18 +362,22 @@ public class NeuralNetworkModel extends LTRScoringModel {
       ++numLayers;
     }
 
-    if (numOutputs != 1) {
-      throw new ModelException("Final layer for model " + name + " has " + Integer.toString(numOutputs) +
-                               " outputs, but should have only 1 output.");
+    try {
+      this.output.validate(numOutputs);
+    } catch (ModelException me) {
+      throw new ModelException("Model " + name + " output node validation failed.", me);
     }
   }
 
   public float altScore(float[] inputFeatures) {
-    float[] outputVec = inputFeatures;
+    float[] outputVec = new float[inputFeatureIndices.length];
+    for (int ii=0; ii<outputVec.length; ++ii) {
+      outputVec[ii] = inputFeatures[inputFeatureIndices[ii]];
+    }
     for (NeuralNetworkLayer layer : this.layers) {
       outputVec = layer.calculateOutputs(outputVec);
     }
-    return outputVec[0];
+    return output.calculateOutput(outputVec);
   }
 
   @Override
