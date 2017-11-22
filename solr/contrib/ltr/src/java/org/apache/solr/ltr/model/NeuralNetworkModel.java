@@ -84,10 +84,22 @@ public class NeuralNetworkModel extends LTRScoringModel {
 
   private List<String> inputFeatureNames;
   private int[] inputFeatureIndices;
+  private String nonLinearityStr;
+  private NonLinearity nonLinearity = new IdentityNonLinearity();
   private List<NeuralNetworkLayer> layers;
   private NeuralNetworkNode output;
   protected ArrayList<float[][]> weightMatrices;
   protected String nonlinearity;
+
+  protected static interface NonLinearity {
+    // similar to UnaryOperator<Float>
+    public float apply(float in);
+  }
+
+  protected static class IdentityNonLinearity implements NonLinearity {
+    public IdentityNonLinearity() {}
+    public float apply(float in) { return in; }
+  }
 
   public class NeuralNetworkLayer {
 
@@ -112,7 +124,7 @@ public class NeuralNetworkModel extends LTRScoringModel {
     public float[] calculateOutputs(float[] inputs) {
       final float[] outputs = new float[nodes.size()];
       for (int ii=0; ii<outputs.length; ++ii) {
-        outputs[ii] = doNonlinearity(nodes.get(ii).calculateOutput(inputs));
+        outputs[ii] = nonLinearity.apply(nodes.get(ii).calculateOutput(inputs));
       }
       return inputs;
     }
@@ -219,6 +231,38 @@ public class NeuralNetworkModel extends LTRScoringModel {
 
   public void setNonlinearity(Object nonlinearityStr) {
     nonlinearity = (String) nonlinearityStr;
+    this.nonLinearityStr = (String) nonlinearityStr;
+    if (this.nonLinearityStr == null) {
+
+      this.nonLinearity = null;
+
+    } else if (this.nonLinearityStr.equals("identity")) {
+
+      this.nonLinearity = new IdentityNonLinearity();
+
+    } else if (this.nonLinearityStr.equals("relu")) {
+
+      this.nonLinearity = new NonLinearity() {
+        @Override
+        public float apply(float in) {
+          return in < 0 ? 0 : in;
+        }
+      };
+
+    } else if (this.nonLinearityStr.equals("sigmoid")) {
+
+      this.nonLinearity = new NonLinearity() {
+        @Override
+        public float apply(float in) {
+          return (float) (1 / (1 + Math.exp(-in)));
+        }
+      };
+
+    } else {
+
+      this.nonLinearity = null;
+
+    }
   }
 
   private float[] dot(float[][] matrix, float[] inputVec) {
@@ -243,19 +287,6 @@ public class NeuralNetworkModel extends LTRScoringModel {
       return x < 0 ? 0 : x;
     } else {
       return (float) (1 / (1 + Math.exp(-x)));
-    }
-  }
-
-  protected float doNonlinearity(String nonlinearity, float x) {
-    if (nonlinearity.equals("relu")) {
-      return x < 0 ? 0 : x;
-    } else if (nonlinearity.equals("sigmoid")) {
-      return (float) (1 / (1 + Math.exp(-x)));
-    } else if (nonlinearity.equals("identity")) {
-      return x;
-    } else {
-      // should never get here
-      return 0;
     }
   }
 
@@ -326,15 +357,12 @@ public class NeuralNetworkModel extends LTRScoringModel {
     return outputVec[0];
   }
 
-  protected void validateNonlinearity(String key, String val) throws ModelException {
-    if (!val.matches("relu|sigmoid|identity")) {
-      throw new ModelException("Invalid "+key+" for model " + name + ". " +
-                               "\"" + val + "\" is not \"relu\" or \"sigmoid\" or \"identity\".");
-    }
-  }
-
   protected void altValidate() throws ModelException {
     super.validate();
+
+    if (this.nonLinearity == null) {
+      throw new ModelException("Invalid nonlinearity ("+this.nonLinearityStr+") for model " + name + ".");
+    }
 
     if (inputFeatureNames.size() != inputFeatureIndices.length) {
       throw new ModelException("Model " + name
