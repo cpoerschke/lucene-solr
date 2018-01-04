@@ -37,6 +37,12 @@ public class GroupingSpecification {
   private Grouping.Format responseFormat;
   private boolean needScore;
   private boolean truncateGroups;
+  /* This is an optimization to skip the second grouping step when groupLimit is 1. The second
+  * grouping step retrieves the top K documents for each group. This is not necessary when only one
+  * document per group is required because in the first step every shard sends back the group score given
+  * by its top document.
+  */
+  private boolean skipSecondGroupingStep;
 
   public String[] getFields() {
     return fields;
@@ -173,5 +179,9 @@ public class GroupingSpecification {
   public void setWithinGroupSortSpec(SortSpec withinGroupSortSpec) {
     this.withinGroupSortSpec = withinGroupSortSpec;
   }
+
+  public boolean isSkipSecondGroupingStep() { return skipSecondGroupingStep; }
+
+  public void setSkipSecondGroupingStep(boolean skipSecondGroupingStep) { this.skipSecondGroupingStep = skipSecondGroupingStep; }
 
 }
