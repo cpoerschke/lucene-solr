@@ -66,5 +66,10 @@ public interface GroupParams {
   public static final String GROUP_DISTRIBUTED_SECOND = GROUP + ".distributed.second";
 
   public static final String GROUP_DISTRIBUTED_TOPGROUPS_PREFIX = GROUP + ".topgroups.";
+
+  /** activates optimization in case only one document per group.
+   * Setting this to true is only compatible with group.limit = 1
+   */
+  public static final String GROUP_SKIP_DISTRIBUTED_SECOND = GROUP + ".skip.second.step";
 }
 

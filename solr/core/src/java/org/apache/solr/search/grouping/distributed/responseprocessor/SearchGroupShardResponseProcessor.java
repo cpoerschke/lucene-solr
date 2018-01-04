@@ -27,13 +27,16 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.grouping.GroupDocs;
 import org.apache.lucene.search.grouping.SearchGroup;
+import org.apache.lucene.search.grouping.TopGroups;
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.params.ShardParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.handler.component.ResponseBuilder;
+import org.apache.solr.handler.component.ShardDoc;
 import org.apache.solr.handler.component.ShardRequest;
 import org.apache.solr.handler.component.ShardResponse;
 import org.apache.solr.response.SolrQueryResponse;
@@ -68,7 +71,9 @@ public class SearchGroupShardResponseProcessor implements ShardResponseProcessor
       }
     }
 
-    SearchGroupsResultTransformer serializer = new SearchGroupsResultTransformer(rb.req.getSearcher());
+    final SearchGroupsResultTransformer serializer = SearchGroupsResultTransformer.getInstance(rb.req.getSearcher(), rb.getGroupingSpec().isSkipSecondGroupingStep());
+    final Map<Object, String> docIdToShard = new HashMap<>();
+
     int maxElapsedTime = 0;
     int hitCountDuringFirstPhase = 0;
 
@@ -135,6 +140,8 @@ public class SearchGroupShardResponseProcessor implements ShardResponseProcessor
             shards = new HashSet<>();
             map.put(searchGroup, shards);
           }
+          assert(srsp.getShard() != null);
+          docIdToShard.put(searchGroup.topDocSolrId, srsp.getShard());
           shards.add(srsp.getShard());
         }
       }
@@ -148,12 +155,61 @@ public class SearchGroupShardResponseProcessor implements ShardResponseProcessor
       if (mergedTopGroups == null) {
         continue;
       }
-
-      rb.mergedSearchGroups.put(groupField, mergedTopGroups);
-      for (SearchGroup<BytesRef> mergedTopGroup : mergedTopGroups) {
-        rb.searchGroupToShards.get(groupField).put(mergedTopGroup, tempSearchGroupToShards.get(groupField).get(mergedTopGroup));
+      if (rb.getGroupingSpec().isSkipSecondGroupingStep()){
+          /* If we are skipping the second grouping step we want to translate the response of the
+           * first step in the response of the second step and send it to the get_fields step.
+           */
+          processSkipSecondGroupingStep(rb, mergedTopGroups, tempSearchGroupToShards, docIdToShard, groupSort, fields,  groupField);
+      }
+      else {
+        rb.mergedSearchGroups.put(groupField, mergedTopGroups);
+        for (SearchGroup<BytesRef> mergedTopGroup : mergedTopGroups) {
+          rb.searchGroupToShards.get(groupField).put(mergedTopGroup, tempSearchGroupToShards.get(groupField).get(mergedTopGroup));
+        }
       }
     }
+  }
+
+  private void processSkipSecondGroupingStep(final ResponseBuilder rb, final Collection<SearchGroup<BytesRef>> mergedTopGroups, final Map<String, Map<SearchGroup<BytesRef>, Set<String>>> tempSearchGroupToShards, Map<Object, String> docIdToShard, Sort groupSort, final String[] fields, final String groupField){
+    GroupDocs<BytesRef>[] groups = new GroupDocs[mergedTopGroups.size()];
+    Map<Object, ShardDoc> resultsId = new HashMap<>(mergedTopGroups.size());
+
+    // This is the max score found in any document on any group
+    float maxScore = 0;
+    int index = 0;
+
+    for (SearchGroup<BytesRef> group : mergedTopGroups) {
+      maxScore = Math.max(maxScore, group.topDocScore);
+      rb.searchGroupToShards.get(groupField).put(group, tempSearchGroupToShards.get(groupField).get(group));
+      final String shard = docIdToShard.get(group.topDocSolrId);
+      assert(shard != null);
+      ShardDoc sdoc = new ShardDoc(group.topDocScore,
+          fields,
+          group.topDocSolrId,
+          shard );
+      sdoc.positionInResponse = index;
+
+      resultsId.put(sdoc.id, sdoc);
+      groups[index++] = new GroupDocs<BytesRef>(group.topDocScore,
+          group.topDocScore,
+          1, /* we don't know the actual number of hits in the group- we set it to 1 as we only keep track of the top doc */
+          new ShardDoc[] { sdoc }, /* only top doc */
+          group.groupValue,
+          group.sortValues);
+    }
+    TopGroups<BytesRef> topMergedGroups = new TopGroups<BytesRef>(groupSort.getSort(),
+        rb.getGroupingSpec().getSortWithinGroup().getSort(),
+        0, /*Set totalHitCount to 0 as we can't computed it as is */
+        0, /*Set totalGroupedHitCount to 0 as we can't computed it as is*/
+        groups,
+        maxScore);
+    rb.mergedTopGroups.put(groupField, topMergedGroups);
+
+    if(rb.resultIds == null) {
+      rb.resultIds = new HashMap<>();
+    }
+
+    rb.resultIds.putAll(resultsId);
   }
 
 }

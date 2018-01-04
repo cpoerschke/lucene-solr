@@ -233,6 +233,41 @@ public class QueryComponent extends SearchComponent
     }
   }
 
+  private boolean allowSkipSecondGroupingStep(final GroupingSpecification groupingSpec, final boolean isReranking ) {
+    // Only possible if we only want one doc per group
+    if (groupingSpec.getGroupLimit() != 1) {
+        logger.error("group.skip.second.step=true is not compatible with group.limit == " + groupingSpec.getGroupLimit() );
+        return false;
+    }
+
+    // Within group sort must be the same as group sort because if we skip second step no sorting within group will be done.
+    if (groupingSpec.getSortWithinGroup() !=  groupingSpec.getGroupSort()) {
+        logger.error("group.skip.second.step=true is not compatible with group.sort != sort");
+        return false;
+    }
+
+    boolean byRelevanceOnly = false;
+    SortField[] sortFields = groupingSpec.getGroupSort().getSort();
+
+    if(sortFields != null && sortFields.length == 1 && sortFields[0] != null && sortFields[0].getComparator() instanceof FieldComparator.RelevanceComparator) {
+      byRelevanceOnly = true;
+    }
+
+    // TODO: At the moment the optimization is only supported when we are sorting by relevance only
+    if(!byRelevanceOnly) {
+        logger.error("group.skip.second.step=true is not compatible with sort= " + (sortFields != null? sortFields.toString() : null));
+        return false;
+    }
+
+    // TODO: At the moment the optimization does not support reranking
+    if(isReranking) {
+        logger.error("group.skip.second.step=true is not compatible with reranking");
+        return false;
+    }
+
+    return true;
+  }
+
   protected void prepareGrouping(ResponseBuilder rb) throws IOException {
 
     SolrQueryRequest req = rb.req;
@@ -289,6 +324,13 @@ public class QueryComponent extends SearchComponent
     groupingSpec.setMain(params.getBool(GroupParams.GROUP_MAIN, false));
     groupingSpec.setNeedScore((rb.getFieldFlags() & SolrIndexSearcher.GET_SCORES) != 0);
     groupingSpec.setTruncateGroups(params.getBool(GroupParams.GROUP_TRUNCATE, false));
+
+    groupingSpec.setSkipSecondGroupingStep(params.getBool(GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND, false));
+    boolean isReranking = (rb.getRankQuery() != null);
+    if (groupingSpec.isSkipSecondGroupingStep() & !allowSkipSecondGroupingStep(groupingSpec, isReranking)){
+      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
+          "Illegal grouping specification for skip second step optimization: " + groupingSpec.toString());
+    }
   }
 
 
@@ -526,6 +568,12 @@ public class QueryComponent extends SearchComponent
     } else if (rb.stage == ResponseBuilder.STAGE_GET_FIELDS) {
       shardRequestFactory = new StoredFieldsShardRequestFactory();
       nextStage = ResponseBuilder.STAGE_DONE;
+    }
+
+    if (rb.stage == ResponseBuilder.STAGE_EXECUTE_QUERY && rb.getGroupingSpec().isSkipSecondGroupingStep()) {
+      shardRequestFactory = new StoredFieldsShardRequestFactory();
+      nextStage = ResponseBuilder.STAGE_DONE;
+      rb.stage = ResponseBuilder.STAGE_GET_FIELDS;
     }
 
     if (shardRequestFactory != null) {
@@ -1277,7 +1325,7 @@ public class QueryComponent extends SearchComponent
 
     CommandHandler commandHandler = topsGroupsActionBuilder.build();
     commandHandler.execute();
-    SearchGroupsResultTransformer serializer = new SearchGroupsResultTransformer(searcher);
+    SearchGroupsResultTransformer serializer = SearchGroupsResultTransformer.getInstance(searcher, rb.getGroupingSpec().isSkipSecondGroupingStep());
 
     rsp.add("firstPhase", commandHandler.processResult(result, serializer));
     rsp.add("totalHitCount", commandHandler.getTotalHitCount());

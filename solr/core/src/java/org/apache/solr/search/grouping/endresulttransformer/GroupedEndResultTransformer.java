@@ -68,8 +68,14 @@ public class GroupedEndResultTransformer implements EndResultTransformer {
         for (GroupDocs<BytesRef> group : topGroups.groups) {
           SimpleOrderedMap<Object> groupResult = new SimpleOrderedMap<>();
           if (group.groupValue != null) {
+            final String groupValue;
+            if (rb.getGroupingSpec().isSkipSecondGroupingStep()) {
+              groupValue = groupField.getType().indexedToReadable(group.groupValue.utf8ToString());
+            } else {
+              groupValue = group.groupValue.utf8ToString();
+            }
             groupResult.add(
-                "groupValue", groupFieldType.toObject(groupField.createField(group.groupValue.utf8ToString()))
+                "groupValue", groupFieldType.toObject(groupField.createField(groupValue))
             );
           } else {
             groupResult.add("groupValue", null);
