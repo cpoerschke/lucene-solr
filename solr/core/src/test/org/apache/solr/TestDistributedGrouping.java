@@ -310,6 +310,32 @@ public class TestDistributedGrouping extends BaseDistributedSearchTestCase {
     
     //Debug
     simpleQuery("q", "*:*", "rows", 10, "fl", "id," + i1, "group", "true", "group.field", i1, "debug", "true");
+
+    // Ignore numFound if group.skip.second.step is enabled because the number of documents per group will not be computed (will default to 1)
+    handle.put("numFound", SKIP);
+    query("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true, "group.limit", 1,  "fl",  "id," + i1, "group", "true",
+               "group.field", i1);
+    query("q", "kings", "group.skip.second.step", true, "fl", "id," + i1, "group", "true", "group.field", i1);
+    query("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true,  "fl",  "id," + i1, "group", "true",
+          "group.field", i1);
+    query("q", "1234doesnotmatchanything1234", "group.skip.second.step", true, "fl", "id," + i1, "group", "true", "group.field", i1);
+
+    ignoreException("Illegal grouping specification");
+    assertSimpleQueryThrows("q", "{!func}id_i1", "group.skip.second.step", true, "fl", "id," + i1, "group", "true", "group.field", i1, "group.ngroups", true);
+    assertSimpleQueryThrows("q", "{!func}id", "group.skip.second.step", true, "fl", "id," + i1, "group", "true", "group.field", i1, "group.limit", 5);
+    assertSimpleQueryThrows("q", "{!func}id_i1", "group.skip.second.step", true, "fl", "id," + i1, "group", "true", "group.field", i1, "group.limit", 0);
+    handle.remove("numFound");
+
+  }
+
+  private void assertSimpleQueryThrows(Object... queryParams) {
+    boolean requestFailed = false;
+    try {
+      simpleQuery(queryParams);
+    } catch (Exception e) {
+      requestFailed = true;
+    }
+    assertTrue(requestFailed);
   }
 
   private void simpleQuery(Object... queryParams) throws SolrServerException, IOException {

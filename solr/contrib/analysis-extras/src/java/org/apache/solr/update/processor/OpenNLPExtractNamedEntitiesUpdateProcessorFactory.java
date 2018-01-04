@@ -73,7 +73,7 @@ import static org.apache.solr.common.SolrException.ErrorCode.SERVER_ERROR;
  *     &lt;/analyzer&gt;
  *   &lt;/fieldType&gt;
  * </pre>
- * 
+ *
  * <p>See the <a href="http://opennlp.apache.org/models.html">OpenNLP website</a>
  * for information on downloading pre-trained models.</p>
  *
