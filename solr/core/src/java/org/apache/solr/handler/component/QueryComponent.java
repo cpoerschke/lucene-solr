@@ -234,20 +234,25 @@ public class QueryComponent extends SearchComponent
   }
 
   private boolean allowSkipSecondGroupingStep(final GroupingSpecification groupingSpec, final boolean isReranking ) {
+    final SortSpec groupSortSpec = groupingSpec.getGroupSortSpec();
+    final SortSpec withinGroupSortSpec = groupingSpec.getWithinGroupSortSpec();
+
     // Only possible if we only want one doc per group
-    if (groupingSpec.getGroupLimit() != 1) {
-        LOG.error("group.skip.second.step=true is not compatible with group.limit == " + groupingSpec.getGroupLimit() );
+    if (withinGroupSortSpec.getCount() != 1) {
+        LOG.error("group.skip.second.step=true is not compatible with group.limit ({})", withinGroupSortSpec.getCount());
         return false;
     }
 
+    final Sort groupSort = groupSortSpec.getSort();
+
     // Within group sort must be the same as group sort because if we skip second step no sorting within group will be done.
-    if (groupingSpec.getSortWithinGroup() !=  groupingSpec.getGroupSort()) {
-        LOG.error("group.skip.second.step=true is not compatible with group.sort != sort");
+    if (withinGroupSortSpec.getSort() != groupSort) {
+        LOG.error("group.skip.second.step=true is not compatible with group.sort != sort ({} != {})", withinGroupSortSpec.getSort(), groupSort);
         return false;
     }
 
     boolean byRelevanceOnly = false;
-    SortField[] sortFields = groupingSpec.getGroupSort().getSort();
+    final SortField[] sortFields = groupSort.getSort();
 
     // TODO: uncomment-and-adjust the commented out if-clause below
     if(sortFields != null && sortFields.length == 1 && sortFields[0] != null /* && sortFields[0].getComparator() instanceof FieldComparator.RelevanceComparator */) {
