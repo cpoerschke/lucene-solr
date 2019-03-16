@@ -235,13 +235,13 @@ public class QueryComponent extends SearchComponent
   private boolean allowSkipSecondGroupingStep(final GroupingSpecification groupingSpec, final boolean isReranking ) {
     // Only possible if we only want one doc per group
     if (groupingSpec.getGroupLimit() != 1) {
-        LOG.error("group.skip.second.step=true is not compatible with group.limit == " + groupingSpec.getGroupLimit() );
+        log.error("group.skip.second.step=true is not compatible with group.limit == " + groupingSpec.getGroupLimit() );
         return false;
     }
 
     // Within group sort must be the same as group sort because if we skip second step no sorting within group will be done.
     if (groupingSpec.getSortWithinGroup() !=  groupingSpec.getGroupSort()) {
-        LOG.error("group.skip.second.step=true is not compatible with group.sort != sort");
+        log.error("group.skip.second.step=true is not compatible with group.sort != sort");
         return false;
     }
 
@@ -255,13 +255,13 @@ public class QueryComponent extends SearchComponent
 
     // TODO: At the moment the optimization is only supported when we are sorting by relevance only
     if(!byRelevanceOnly) {
-        LOG.error("group.skip.second.step=true is not compatible with sort= " + (sortFields != null? sortFields.toString() : null));
+        log.error("group.skip.second.step=true is not compatible with sort= " + (sortFields != null? sortFields.toString() : null));
         return false;
     }
 
     // TODO: At the moment the optimization does not support reranking
     if(isReranking) {
-        LOG.error("group.skip.second.step=true is not compatible with reranking");
+        log.error("group.skip.second.step=true is not compatible with reranking");
         return false;
     }
 
