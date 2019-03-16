@@ -75,7 +75,6 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
   /**
    * {@inheritDoc}
    */
->>>>>>> SOLR-11831: Skip second grouping step if group.limit is 1 (aka Las Vegas patch)
   @Override
   public NamedList transform(List<Command> data) throws IOException {
     final NamedList<NamedList> result = new NamedList<>(data.size());
@@ -101,28 +100,6 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
     return result;
   }
 
-<<<<<<< HEAD
-  @Override
-  public Map<String, SearchGroupsFieldCommandResult> transformToNative(NamedList<NamedList> shardResponse, Sort groupSort, Sort withinGroupSort, String shard) {
-    final Map<String, SearchGroupsFieldCommandResult> result = new HashMap<>(shardResponse.size());
-    for (Map.Entry<String, NamedList> command : shardResponse) {
-      List<SearchGroup<BytesRef>> searchGroups = new ArrayList<>();
-      NamedList topGroupsAndGroupCount = command.getValue();
-      @SuppressWarnings("unchecked")
-      final NamedList<List<Comparable>> rawSearchGroups = (NamedList<List<Comparable>>) topGroupsAndGroupCount.get(TOP_GROUPS);
-      if (rawSearchGroups != null) {
-        for (Map.Entry<String, List<Comparable>> rawSearchGroup : rawSearchGroups){
-          SearchGroup<BytesRef> searchGroup = new SearchGroup<>();
-          SchemaField groupField = rawSearchGroup.getKey() != null? searcher.getSchema().getFieldOrNull(command.getKey()) : null;
-          searchGroup.groupValue = null;
-          if (rawSearchGroup.getKey() != null) {
-            if (groupField != null) {
-              BytesRefBuilder builder = new BytesRefBuilder();
-              groupField.getType().readableToIndexed(rawSearchGroup.getKey(), builder);
-              searchGroup.groupValue = builder.get();
-            } else {
-              searchGroup.groupValue = new BytesRef(rawSearchGroup.getKey());
-=======
   protected abstract NamedList serializeSearchGroup(Collection<SearchGroup<BytesRef>> data, SearchGroupsFieldCommand command);
 
   private static class DefaultSearchResultResultTransformer extends SearchGroupsResultTransformer {
@@ -155,7 +132,6 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
               } else {
                 searchGroup.groupValue = new BytesRef(rawSearchGroup.getKey());
               }
->>>>>>> SOLR-11831: Skip second grouping step if group.limit is 1 (aka Las Vegas patch)
             }
             searchGroup.sortValues = rawSearchGroup.getValue().toArray(new Comparable[rawSearchGroup.getValue().size()]);
             for (int i = 0; i < searchGroup.sortValues.length; i++) {
