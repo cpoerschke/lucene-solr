@@ -57,7 +57,7 @@ public class TestOpenNLPPOSFilterFactory extends BaseTokenStreamTestCase {
   }
 
   public void testBasic() throws IOException {
-    CustomAnalyzer analyzer = CustomAnalyzer.builder(new ClasspathResourceLoader(getClass()))
+    CustomAnalyzer analyzer = CustomAnalyzer.builder(new ClasspathResourceLoader(this.getClass()))
         .withTokenizer("opennlp", "tokenizerModel", tokenizerModelFile, "sentenceModel", sentenceModelFile)
         .addTokenFilter("opennlpPOS", "posTaggerModel", posTaggerModelFile)
         .build();
