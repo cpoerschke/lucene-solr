@@ -179,9 +179,6 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
       super(searcher);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Map<String, SearchGroupsFieldCommandResult> transformToNative(NamedList<NamedList> shardResponse, Sort groupSort, Sort withinGroupSort, String shard) {
       final Map<String, SearchGroupsFieldCommandResult> result = new HashMap<>(shardResponse.size());
