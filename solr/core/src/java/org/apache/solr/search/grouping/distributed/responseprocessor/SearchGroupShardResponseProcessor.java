@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.TotalHits;
 import org.apache.lucene.search.grouping.GroupDocs;
 import org.apache.lucene.search.grouping.SearchGroup;
 import org.apache.lucene.search.grouping.TopGroups;
@@ -187,7 +188,7 @@ public class SearchGroupShardResponseProcessor implements ShardResponseProcessor
       resultsId.put(sdoc.id, sdoc);
       groups[index++] = new GroupDocs<BytesRef>(group.topDocScore,
           group.topDocScore,
-          1, /* we don't know the actual number of hits in the group- we set it to 1 as we only keep track of the top doc */
+          new TotalHits(1, TotalHits.Relation.EQUAL_TO), /* we don't know the actual number of hits in the group- we set it to 1 as we only keep track of the top doc */
           new ShardDoc[] { sdoc }, /* only top doc */
           group.groupValue,
           group.sortValues);
