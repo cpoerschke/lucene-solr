@@ -232,21 +232,23 @@ public class QueryComponent extends SearchComponent
     }
   }
 
-  private boolean allowSkipSecondGroupingStep(final GroupingSpecification groupingSpec, final boolean isReranking ) {
+  private boolean allowSkipSecondGroupingStep(final SortSpec withinGroupSpecification, final SortSpec groupSort, final boolean isReranking) {
     // Only possible if we only want one doc per group
-    if (groupingSpec.getGroupLimit() != 1) {
-        log.error("group.skip.second.step=true is not compatible with group.limit == " + groupingSpec.getGroupLimit() );
+    final int limit =  withinGroupSpecification.getCount();
+    final int offset = withinGroupSpecification.getOffset();
+    if ( limit != 1 || offset != 0 ) {
+        log.error("group.skip.second.step=true is not compatible with group.limit == " + limit);
         return false;
     }
 
     // Within group sort must be the same as group sort because if we skip second step no sorting within group will be done.
-    if (groupingSpec.getSortWithinGroup() !=  groupingSpec.getGroupSort()) {
+    if (withinGroupSpecification.getSort() !=  groupSort.getSort()) {
         log.error("group.skip.second.step=true is not compatible with group.sort != sort");
         return false;
     }
 
     boolean byRelevanceOnly = false;
-    SortField[] sortFields = groupingSpec.getGroupSort().getSort();
+    SortField[] sortFields = withinGroupSpecification.getSort().getSort();
 
     // TODO: uncomment-and-adjust the commented out if-clause below
     if(sortFields != null && sortFields.length == 1 && sortFields[0] != null /* && sortFields[0].getComparator() instanceof FieldComparator.RelevanceComparator */) {
@@ -327,7 +329,7 @@ public class QueryComponent extends SearchComponent
 
     groupingSpec.setSkipSecondGroupingStep(params.getBool(GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND, false));
     boolean isReranking = (rb.getRankQuery() != null);
-    if (groupingSpec.isSkipSecondGroupingStep() & !allowSkipSecondGroupingStep(groupingSpec, isReranking)){
+    if (groupingSpec.isSkipSecondGroupingStep() & !allowSkipSecondGroupingStep(groupingSpec.getWithinGroupSortSpec(), groupingSpec.getGroupSortSpec(), isReranking)){
       throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
           "Illegal grouping specification for skip second step optimization: " + groupingSpec.toString());
     }
