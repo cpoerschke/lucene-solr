@@ -237,18 +237,19 @@ public class QueryComponent extends SearchComponent
     final int limit =  withinGroupSpecification.getCount();
     final int offset = withinGroupSpecification.getOffset();
     if ( limit != 1 || offset != 0 ) {
-        log.error("group.skip.second.step=true is not compatible with group.limit == " + limit);
+        log.error("group.skip.second.step=true is not compatible with group.limit (limit={}) ", limit);
         return false;
     }
 
     // Within group sort must be the same as group sort because if we skip second step no sorting within group will be done.
     if (withinGroupSpecification.getSort() !=  groupSort.getSort()) {
-        log.error("group.skip.second.step=true is not compatible with group.sort != sort");
+        log.error("group.skip.second.step=true is not compatible with group.sort ({}) != sort ({})",
+                  withinGroupSpecification.getSort(), groupSort.getSort());
         return false;
     }
 
     boolean byRelevanceOnly = false;
-    SortField[] sortFields = withinGroupSpecification.getSort().getSort();
+    final SortField[] sortFields = withinGroupSpecification.getSort().getSort();
 
     // TODO: uncomment-and-adjust the commented out if-clause below
     if(sortFields != null && sortFields.length == 1 && sortFields[0] != null /* && sortFields[0].getComparator() instanceof FieldComparator.RelevanceComparator */) {
