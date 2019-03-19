@@ -569,19 +569,15 @@ public class QueryComponent extends SearchComponent
     } else if (rb.stage < ResponseBuilder.STAGE_EXECUTE_QUERY) {
       nextStage = ResponseBuilder.STAGE_EXECUTE_QUERY;
     } else if (rb.stage == ResponseBuilder.STAGE_EXECUTE_QUERY) {
-      shardRequestFactory = new TopGroupsShardRequestFactory();
+      if (!rb.getGroupingSpec().isSkipSecondGroupingStep()) {
+        shardRequestFactory = new TopGroupsShardRequestFactory();
+      }
       nextStage = ResponseBuilder.STAGE_GET_FIELDS;
     } else if (rb.stage < ResponseBuilder.STAGE_GET_FIELDS) {
       nextStage = ResponseBuilder.STAGE_GET_FIELDS;
     } else if (rb.stage == ResponseBuilder.STAGE_GET_FIELDS) {
       shardRequestFactory = new StoredFieldsShardRequestFactory();
       nextStage = ResponseBuilder.STAGE_DONE;
-    }
-
-    if (rb.stage == ResponseBuilder.STAGE_EXECUTE_QUERY && rb.getGroupingSpec().isSkipSecondGroupingStep()) {
-      shardRequestFactory = new StoredFieldsShardRequestFactory();
-      nextStage = ResponseBuilder.STAGE_DONE;
-      rb.stage = ResponseBuilder.STAGE_GET_FIELDS;
     }
 
     if (shardRequestFactory != null) {
