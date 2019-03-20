@@ -98,6 +98,7 @@ import org.apache.solr.search.grouping.distributed.requestfactory.SearchGroupsRe
 import org.apache.solr.search.grouping.distributed.requestfactory.StoredFieldsShardRequestFactory;
 import org.apache.solr.search.grouping.distributed.requestfactory.TopGroupsShardRequestFactory;
 import org.apache.solr.search.grouping.distributed.responseprocessor.SearchGroupShardResponseProcessor;
+import org.apache.solr.search.grouping.distributed.responseprocessor.SkipSecondStepSearchGroupShardResponseProcessor;
 import org.apache.solr.search.grouping.distributed.responseprocessor.StoredFieldsShardResponseProcessor;
 import org.apache.solr.search.grouping.distributed.responseprocessor.TopGroupsShardResponseProcessor;
 import org.apache.solr.search.grouping.distributed.shardresultserializer.SearchGroupsResultTransformer;
@@ -617,10 +618,18 @@ public class QueryComponent extends SearchComponent
     }
   }
 
+  protected SearchGroupShardResponseProcessor newSearchGroupShardResponseProcessor(ResponseBuilder rb) {
+    if (rb.getGroupingSpec().isSkipSecondGroupingStep()) {
+      return new SkipSecondStepSearchGroupShardResponseProcessor();
+    } else {
+      return new SearchGroupShardResponseProcessor();
+    }
+  }
+
   protected void handleGroupedResponses(ResponseBuilder rb, ShardRequest sreq) {
     ShardResponseProcessor responseProcessor = null;
     if ((sreq.purpose & ShardRequest.PURPOSE_GET_TOP_GROUPS) != 0) {
-      responseProcessor = new SearchGroupShardResponseProcessor();
+      responseProcessor = newSearchGroupShardResponseProcessor(rb);
     } else if ((sreq.purpose & ShardRequest.PURPOSE_GET_TOP_IDS) != 0) {
       responseProcessor = new TopGroupsShardResponseProcessor();
     } else if ((sreq.purpose & ShardRequest.PURPOSE_GET_FIELDS) != 0) {
