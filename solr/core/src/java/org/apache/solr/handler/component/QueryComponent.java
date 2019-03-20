@@ -1322,6 +1322,14 @@ public class QueryComponent extends SearchComponent
     return true;
   }
 
+  protected SearchGroupsResultTransformer newSearchGroupsResultTransformer(ResponseBuilder rb, SolrIndexSearcher searcher) {
+    if (rb.getGroupingSpec().isSkipSecondGroupingStep()) {
+      return new SearchGroupsResultTransformer.SkipSecondStepSearchResultResultTransformer(searcher);
+    } else {
+      return new SearchGroupsResultTransformer.DefaultSearchResultResultTransformer(searcher);
+    }
+  }
+
   private void doProcessGroupedDistributedSearchFirstPhase(ResponseBuilder rb, QueryCommand cmd, QueryResult result) throws IOException {
 
     GroupingSpecification groupingSpec = rb.getGroupingSpec();
@@ -1351,7 +1359,7 @@ public class QueryComponent extends SearchComponent
 
     CommandHandler commandHandler = topsGroupsActionBuilder.build();
     commandHandler.execute();
-    SearchGroupsResultTransformer serializer = SearchGroupsResultTransformer.getInstance(searcher, rb.getGroupingSpec().isSkipSecondGroupingStep());
+    SearchGroupsResultTransformer serializer = newSearchGroupsResultTransformer(rb, searcher);
 
     rsp.add("firstPhase", commandHandler.processResult(result, serializer));
     rsp.add("totalHitCount", commandHandler.getTotalHitCount());

@@ -32,12 +32,13 @@ import org.apache.solr.handler.component.ShardResponse;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.search.grouping.GroupingSpecification;
 import org.apache.solr.search.grouping.distributed.shardresultserializer.SearchGroupsResultTransformer;
+import org.apache.solr.search.grouping.distributed.shardresultserializer.SearchGroupsResultTransformer.SkipSecondStepSearchResultResultTransformer;
 
 public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroupShardResponseProcessor {
 
   @Override
   protected SearchGroupsResultTransformer newSearchGroupsResultTransformer(SolrIndexSearcher solrIndexSearcher) {
-    return SearchGroupsResultTransformer.getInstance(solrIndexSearcher, true);
+    return new SearchGroupsResultTransformer.SkipSecondStepSearchResultResultTransformer(solrIndexSearcher);
   }
 
   @Override

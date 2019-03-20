@@ -49,7 +49,7 @@ import org.apache.solr.search.grouping.distributed.shardresultserializer.SearchG
 public class SearchGroupShardResponseProcessor implements ShardResponseProcessor {
 
   protected SearchGroupsResultTransformer newSearchGroupsResultTransformer(SolrIndexSearcher solrIndexSearcher) {
-    return SearchGroupsResultTransformer.getInstance(solrIndexSearcher, false);
+    return new SearchGroupsResultTransformer.DefaultSearchResultResultTransformer(solrIndexSearcher);
   }
 
   protected SearchGroupsContainer newSearchGroupsContainer(ResponseBuilder rb) {
