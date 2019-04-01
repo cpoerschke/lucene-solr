@@ -52,10 +52,6 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
     this.searcher = searcher;
   }
 
-  public static SearchGroupsResultTransformer getInstance(SolrIndexSearcher searcher, boolean skipSecondStep){
-    return (skipSecondStep) ? new SkipSecondStepSearchResultResultTransformer(searcher) : new DefaultSearchResultResultTransformer(searcher);
-  }
-
   final protected Object[] getConvertedSortValues(final Object[] sortValues, final SortField[] sortFields) {
     Object[] convertedSortValues = new Object[sortValues.length];
     for (int i = 0; i < sortValues.length; i++) {
@@ -99,9 +95,9 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
 
   protected abstract NamedList serializeSearchGroup(Collection<SearchGroup<BytesRef>> data, SearchGroupsFieldCommand command);
 
-  private static class DefaultSearchResultResultTransformer extends SearchGroupsResultTransformer {
+  public static class DefaultSearchResultResultTransformer extends SearchGroupsResultTransformer {
 
-    private DefaultSearchResultResultTransformer(SolrIndexSearcher searcher) {
+    public DefaultSearchResultResultTransformer(SolrIndexSearcher searcher) {
       super(searcher);
     }
 
@@ -163,13 +159,13 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
     }
   }
 
-  private static class SkipSecondStepSearchResultResultTransformer extends SearchGroupsResultTransformer {
+  public static class SkipSecondStepSearchResultResultTransformer extends SearchGroupsResultTransformer {
 
     private static final String TOP_DOC_SOLR_ID_KEY = "topDocSolrId";
     private static final String TOP_DOC_SCORE_KEY = "topDocScore";
     private static final String SORTVALUES_KEY  = "sortValues";
 
-    private SkipSecondStepSearchResultResultTransformer(SolrIndexSearcher searcher) {
+    public SkipSecondStepSearchResultResultTransformer(SolrIndexSearcher searcher) {
       super(searcher);
     }
 
