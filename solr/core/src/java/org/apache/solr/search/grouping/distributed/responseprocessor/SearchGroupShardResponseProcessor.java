@@ -27,20 +27,17 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.TotalHits;
-import org.apache.lucene.search.grouping.GroupDocs;
 import org.apache.lucene.search.grouping.SearchGroup;
-import org.apache.lucene.search.grouping.TopGroups;
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.params.ShardParams;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.handler.component.ResponseBuilder;
-import org.apache.solr.handler.component.ShardDoc;
 import org.apache.solr.handler.component.ShardRequest;
 import org.apache.solr.handler.component.ShardResponse;
 import org.apache.solr.response.SolrQueryResponse;
+import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.search.SortSpec;
 import org.apache.solr.search.grouping.distributed.ShardResponseProcessor;
 import org.apache.solr.search.grouping.distributed.command.SearchGroupsFieldCommandResult;
@@ -51,6 +48,14 @@ import org.apache.solr.search.grouping.distributed.shardresultserializer.SearchG
  */
 public class SearchGroupShardResponseProcessor implements ShardResponseProcessor {
 
+  protected SearchGroupsResultTransformer newSearchGroupsResultTransformer(SolrIndexSearcher solrIndexSearcher) {
+    return new SearchGroupsResultTransformer.DefaultSearchResultResultTransformer(solrIndexSearcher);
+  }
+
+  protected SearchGroupsContainer newSearchGroupsContainer(ResponseBuilder rb) {
+      return new SearchGroupsContainer(rb.getGroupingSpec().getFields());
+  }
+
   @Override
   public void process(ResponseBuilder rb, ShardRequest shardRequest) {
     SortSpec groupSortSpec = rb.getGroupingSpec().getGroupSortSpec();
@@ -60,18 +65,14 @@ public class SearchGroupShardResponseProcessor implements ShardResponseProcessor
     assert withinGroupSort != null;
 
     final Map<String, List<Collection<SearchGroup<BytesRef>>>> commandSearchGroups = new HashMap<>(fields.length, 1.0f);
-    final Map<String, Map<SearchGroup<BytesRef>, Set<String>>> tempSearchGroupToShards = new HashMap<>(fields.length, 1.0f);
     for (String field : fields) {
       commandSearchGroups.put(field, new ArrayList<Collection<SearchGroup<BytesRef>>>(shardRequest.responses.size()));
-      tempSearchGroupToShards.put(field, new HashMap<SearchGroup<BytesRef>, Set<String>>());
       if (!rb.searchGroupToShards.containsKey(field)) {
         rb.searchGroupToShards.put(field, new HashMap<SearchGroup<BytesRef>, Set<String>>());
       }
     }
 
-    final SearchGroupsResultTransformer serializer = SearchGroupsResultTransformer.getInstance(rb.req.getSearcher(), rb.getGroupingSpec().isSkipSecondGroupingStep());
-    final Map<Object, String> docIdToShard = new HashMap<>();
-
+    SearchGroupsResultTransformer serializer = newSearchGroupsResultTransformer(rb.req.getSearcher());
     int maxElapsedTime = 0;
     int hitCountDuringFirstPhase = 0;
 
@@ -80,6 +81,8 @@ public class SearchGroupShardResponseProcessor implements ShardResponseProcessor
       shardInfo = new SimpleOrderedMap<>(shardRequest.responses.size());
       rb.rsp.getValues().add(ShardParams.SHARDS_INFO + ".firstPhase", shardInfo);
     }
+
+    SearchGroupsContainer searchGroupsContainer = newSearchGroupsContainer(rb);
 
     for (ShardResponse srsp : shardRequest.responses) {
       if (shardInfo != null) {
@@ -129,17 +132,7 @@ public class SearchGroupShardResponseProcessor implements ShardResponseProcessor
         }
 
         commandSearchGroups.get(field).add(searchGroups);
-        for (SearchGroup<BytesRef> searchGroup : searchGroups) {
-          Map<SearchGroup<BytesRef>, Set<String>> map = tempSearchGroupToShards.get(field);
-          Set<String> shards = map.get(searchGroup);
-          if (shards == null) {
-            shards = new HashSet<>();
-            map.put(searchGroup, shards);
-          }
-          assert(srsp.getShard() != null);
-          docIdToShard.put(searchGroup.topDocSolrId, srsp.getShard());
-          shards.add(srsp.getShard());
-        }
+        searchGroupsContainer.addSearchGroups(srsp, field, searchGroups);
       }
       hitCountDuringFirstPhase += (Integer) srsp.getSolrResponse().getResponse().get("totalHitCount");
     }
@@ -151,61 +144,43 @@ public class SearchGroupShardResponseProcessor implements ShardResponseProcessor
       if (mergedTopGroups == null) {
         continue;
       }
-      if (rb.getGroupingSpec().isSkipSecondGroupingStep()){
-          /* If we are skipping the second grouping step we want to translate the response of the
-           * first step in the response of the second step and send it to the get_fields step.
-           */
-          processSkipSecondGroupingStep(rb, mergedTopGroups, tempSearchGroupToShards, docIdToShard, groupSort, fields,  groupField);
-      }
-      else {
-        rb.mergedSearchGroups.put(groupField, mergedTopGroups);
-        for (SearchGroup<BytesRef> mergedTopGroup : mergedTopGroups) {
-          rb.searchGroupToShards.get(groupField).put(mergedTopGroup, tempSearchGroupToShards.get(groupField).get(mergedTopGroup));
-        }
-      }
+      searchGroupsContainer.addMergedSearchGroups(rb, groupField, mergedTopGroups);
+      searchGroupsContainer.addSearchGroupToShards(rb, groupField, mergedTopGroups);
     }
   }
 
-  private void processSkipSecondGroupingStep(final ResponseBuilder rb, final Collection<SearchGroup<BytesRef>> mergedTopGroups, final Map<String, Map<SearchGroup<BytesRef>, Set<String>>> tempSearchGroupToShards, Map<Object, String> docIdToShard, Sort groupSort, final String[] fields, final String groupField){
-    GroupDocs<BytesRef>[] groups = new GroupDocs[mergedTopGroups.size()];
-    Map<Object, ShardDoc> resultsId = new HashMap<>(mergedTopGroups.size());
+  protected static class SearchGroupsContainer {
 
-    // This is the max score found in any document on any group
-    float maxScore = 0;
-    int index = 0;
+    private final Map<String, Map<SearchGroup<BytesRef>, Set<String>>> tempSearchGroupToShards;
 
-    for (SearchGroup<BytesRef> group : mergedTopGroups) {
-      maxScore = Math.max(maxScore, group.topDocScore);
-      rb.searchGroupToShards.get(groupField).put(group, tempSearchGroupToShards.get(groupField).get(group));
-      final String shard = docIdToShard.get(group.topDocSolrId);
-      assert(shard != null);
-      ShardDoc sdoc = new ShardDoc(group.topDocScore,
-          fields,
-          group.topDocSolrId,
-          shard );
-      sdoc.positionInResponse = index;
-
-      resultsId.put(sdoc.id, sdoc);
-      groups[index++] = new GroupDocs<BytesRef>(group.topDocScore,
-          group.topDocScore,
-          new TotalHits(1, TotalHits.Relation.EQUAL_TO), /* we don't know the actual number of hits in the group- we set it to 1 as we only keep track of the top doc */
-          new ShardDoc[] { sdoc }, /* only top doc */
-          group.groupValue,
-          group.sortValues);
-    }
-    TopGroups<BytesRef> topMergedGroups = new TopGroups<BytesRef>(groupSort.getSort(),
-        rb.getGroupingSpec().getSortWithinGroup().getSort(),
-        0, /*Set totalHitCount to 0 as we can't computed it as is */
-        0, /*Set totalGroupedHitCount to 0 as we can't computed it as is*/
-        groups,
-        maxScore);
-    rb.mergedTopGroups.put(groupField, topMergedGroups);
-
-    if(rb.resultIds == null) {
-      rb.resultIds = new HashMap<>();
+    public SearchGroupsContainer(String[] fields) {
+      tempSearchGroupToShards = new HashMap<>(fields.length, 1.0f);
+      for (String field : fields) {
+        tempSearchGroupToShards.put(field, new HashMap<SearchGroup<BytesRef>, Set<String>>());
+      }
     }
 
-    rb.resultIds.putAll(resultsId);
+    public void addSearchGroups(ShardResponse srsp, String field, Collection<SearchGroup<BytesRef>> searchGroups) {
+      for (SearchGroup<BytesRef> searchGroup : searchGroups) {
+        Map<SearchGroup<BytesRef>, Set<String>> map = tempSearchGroupToShards.get(field);
+        Set<String> shards = map.get(searchGroup);
+        if (shards == null) {
+          shards = new HashSet<>();
+          map.put(searchGroup, shards);
+        }
+        shards.add(srsp.getShard());
+      }
+    }
+
+    public void addMergedSearchGroups(ResponseBuilder rb, String groupField, Collection<SearchGroup<BytesRef>> mergedTopGroups) {
+      rb.mergedSearchGroups.put(groupField, mergedTopGroups);
+    }
+
+    public void addSearchGroupToShards(ResponseBuilder rb, String groupField, Collection<SearchGroup<BytesRef>> mergedTopGroups) {
+      for (SearchGroup<BytesRef> mergedTopGroup : mergedTopGroups) {
+        rb.searchGroupToShards.get(groupField).put(mergedTopGroup, tempSearchGroupToShards.get(groupField).get(mergedTopGroup));
+      }
+    }
   }
 
 }
