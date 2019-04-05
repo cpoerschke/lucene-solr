@@ -71,5 +71,7 @@ public interface GroupParams {
    * Setting this to true is only compatible with group.limit = 1
    */
   public static final String GROUP_SKIP_DISTRIBUTED_SECOND = GROUP + ".skip.second.step";
+
+  public static final boolean GROUP_SKIP_DISTRIBUTED_SECOND_DEFAULT = false;
 }
 
