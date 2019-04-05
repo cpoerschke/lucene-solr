@@ -46,6 +46,10 @@ public class GroupedEndResultTransformer implements EndResultTransformer {
     this.searcher = searcher;
   }
 
+  protected String groupValueToString(FieldType groupFieldType, BytesRef groupValue) {
+    return groupValue.utf8ToString();
+  }
+
   @Override
   public void transform(Map<String, ?> result, ResponseBuilder rb, SolrDocumentSource solrDocumentSource) {
     NamedList<Object> commands = new SimpleOrderedMap<>();
@@ -67,14 +71,8 @@ public class GroupedEndResultTransformer implements EndResultTransformer {
         for (GroupDocs<BytesRef> group : topGroups.groups) {
           SimpleOrderedMap<Object> groupResult = new SimpleOrderedMap<>();
           if (group.groupValue != null) {
-            final String groupValue;
-            if (rb.getGroupingSpec().isSkipSecondGroupingStep()) {
-              groupValue = groupField.getType().indexedToReadable(group.groupValue.utf8ToString());
-            } else {
-              groupValue = group.groupValue.utf8ToString();
-            }
             groupResult.add(
-                "groupValue", groupFieldType.toObject(groupField.createField(groupValue))
+                "groupValue", groupFieldType.toObject(groupField.createField(groupValueToString(groupFieldType, group.groupValue)))
             );
           } else {
             groupResult.add("groupValue", null);

@@ -689,7 +689,16 @@ public class QueryComponent extends SearchComponent
     if (groupSpec.isMain()) {
       endResultTransformer = MAIN_END_RESULT_TRANSFORMER;
     } else if (Grouping.Format.grouped == groupSpec.getResponseFormat()) {
-      endResultTransformer = new GroupedEndResultTransformer(rb.req.getSearcher());
+      if (rb.getGroupingSpec().isSkipSecondGroupingStep()) {
+        endResultTransformer = new GroupedEndResultTransformer(rb.req.getSearcher()) {
+          @Override
+          protected String groupValueToString(FieldType groupFieldType, BytesRef groupValue) {
+            return groupFieldType.indexedToReadable(groupValue.utf8ToString());
+          }
+        };
+      } else {
+        endResultTransformer = new GroupedEndResultTransformer(rb.req.getSearcher());
+      }
     } else if (Grouping.Format.simple == groupSpec.getResponseFormat() && !groupSpec.isMain()) {
       endResultTransformer = SIMPLE_END_RESULT_TRANSFORMER;
     } else {
