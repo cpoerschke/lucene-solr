@@ -52,22 +52,6 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
     this.searcher = searcher;
   }
 
-  final protected Object[] getConvertedSortValues(final Object[] sortValues, final SortField[] sortFields) {
-    Object[] convertedSortValues = new Object[sortValues.length];
-    for (int i = 0; i < sortValues.length; i++) {
-      Object sortValue = sortValues[i];
-      SchemaField field = sortFields[i].getField() != null ? searcher.getSchema().getFieldOrNull(sortFields[i].getField()) : null;
-      if (field != null) {
-        FieldType fieldType = field.getType();
-        if (sortValue != null) {
-          sortValue = fieldType.marshalSortValue(sortValue);
-        }
-      }
-      convertedSortValues[i] = sortValue;
-    }
-    return convertedSortValues;
-  }
-
   @Override
   public NamedList transform(List<Command> data) throws IOException {
     final NamedList<NamedList> result = new NamedList<>(data.size());
@@ -93,7 +77,20 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
     return result;
   }
 
-  protected abstract NamedList serializeSearchGroup(Collection<SearchGroup<BytesRef>> data, SearchGroupsFieldCommand command);
+  protected abstract Object serializeOneSearchGroup(SearchGroup<BytesRef> searchGroup, SearchGroupsFieldCommand command);
+
+  private NamedList serializeSearchGroup(Collection<SearchGroup<BytesRef>> data, SearchGroupsFieldCommand command) {
+    final NamedList<Object> result = new NamedList<>(data.size());
+
+    for (SearchGroup<BytesRef> searchGroup : data) {
+      Object convertedSortValues = serializeOneSearchGroup(searchGroup, command);
+      SchemaField field = searcher.getSchema().getFieldOrNull(command.getKey());
+      String groupValue = searchGroup.groupValue != null ? field.getType().indexedToReadable(searchGroup.groupValue, new CharsRefBuilder()).toString() : null;
+      result.add(groupValue, convertedSortValues);
+    }
+
+    return result;
+  }
 
   public static class DefaultSearchResultResultTransformer extends SearchGroupsResultTransformer {
 
@@ -139,10 +136,7 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
     }
 
     @Override
-    protected NamedList serializeSearchGroup(Collection<SearchGroup<BytesRef>> data, SearchGroupsFieldCommand command) {
-      final NamedList<Object[]> result = new NamedList<>(data.size());
-
-      for (SearchGroup<BytesRef> searchGroup : data) {
+    protected Object serializeOneSearchGroup(SearchGroup<BytesRef> searchGroup, SearchGroupsFieldCommand command) {
         Object[] convertedSortValues = new Object[searchGroup.sortValues.length];
         for (int i = 0; i < searchGroup.sortValues.length; i++) {
           Object sortValue = searchGroup.sortValues[i];
@@ -150,16 +144,11 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
               searcher.getSchema().getFieldOrNull(command.getGroupSort().getSort()[i].getField()) : null;
           convertedSortValues[i] = ShardResultTransformerUtils.marshalSortValue(sortValue, field);
         }
-        SchemaField field = searcher.getSchema().getFieldOrNull(command.getKey());
-        String groupValue = searchGroup.groupValue != null ? field.getType().indexedToReadable(searchGroup.groupValue, new CharsRefBuilder()).toString() : null;
-        result.add(groupValue, convertedSortValues);
-      }
-
-      return result;
+        return convertedSortValues;
     }
   }
 
-  public static class SkipSecondStepSearchResultResultTransformer extends SearchGroupsResultTransformer {
+  public static class SkipSecondStepSearchResultResultTransformer extends DefaultSearchResultResultTransformer {
 
     private static final String TOP_DOC_SOLR_ID_KEY = "topDocSolrId";
     private static final String TOP_DOC_SCORE_KEY = "topDocScore";
@@ -222,10 +211,7 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
     }
 
     @Override
-    protected NamedList serializeSearchGroup(Collection<SearchGroup<BytesRef>> data, SearchGroupsFieldCommand command) {
-      final NamedList<NamedList> result = new NamedList<>(data.size());
-      for (SearchGroup<BytesRef> searchGroup : data) {
-
+    protected Object serializeOneSearchGroup(SearchGroup<BytesRef> searchGroup, SearchGroupsFieldCommand command) {
         final IndexSchema schema = searcher.getSchema();
         SchemaField uniqueField = schema.getUniqueKeyField();
 
@@ -245,14 +231,12 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
         groupInfo.add(TOP_DOC_SCORE_KEY, searchGroup.topDocScore);
         groupInfo.add(TOP_DOC_SOLR_ID_KEY, topDocSolrId);
 
-        Object[] convertedSortValues = getConvertedSortValues(searchGroup.sortValues, command.getGroupSort().getSort());
+        Object convertedSortValues = super.serializeOneSearchGroup(searchGroup, command);
         groupInfo.add(SORTVALUES_KEY, convertedSortValues);
 
         SchemaField field = searcher.getSchema().getFieldOrNull(command.getKey());
         final String groupValue = searchGroup.groupValue != null ? field.getType().indexedToReadable(searchGroup.groupValue, new CharsRefBuilder()).toString() : null;
-        result.add(groupValue, groupInfo);
-      }
-      return result;
+        return groupInfo;
     }
 
     private Document retrieveDocument(final SchemaField uniqueField, int doc) throws IOException {
