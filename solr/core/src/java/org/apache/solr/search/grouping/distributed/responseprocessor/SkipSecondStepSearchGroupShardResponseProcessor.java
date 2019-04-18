@@ -28,6 +28,7 @@ import org.apache.lucene.search.grouping.TopGroups;
 import org.apache.lucene.util.BytesRef;
 import org.apache.solr.handler.component.ResponseBuilder;
 import org.apache.solr.handler.component.ShardDoc;
+import org.apache.solr.handler.component.ShardRequest;
 import org.apache.solr.handler.component.ShardResponse;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.search.grouping.GroupingSpecification;
@@ -43,6 +44,12 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
   @Override
   protected SearchGroupsContainer newSearchGroupsContainer(ResponseBuilder rb) {
     return new SkipSecondStepSearchGroupsContainer(rb.getGroupingSpec().getFields());
+  }
+
+  @Override
+  public void process(ResponseBuilder rb, ShardRequest shardRequest) {
+    super.process(rb, shardRequest);
+    TopGroupsShardResponseProcessor.fillResultIds(rb);
   }
 
   protected static class SkipSecondStepSearchGroupsContainer extends SearchGroupsContainer {
@@ -76,7 +83,6 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
       final String[] fields = groupingSpecification.getFields();
 
       GroupDocs<BytesRef>[] groups = new GroupDocs[mergedTopGroups.size()];
-      Map<Object, ShardDoc> resultsId = new HashMap<>(mergedTopGroups.size());
 
       // This is the max score found in any document on any group
       float maxScore = 0;
@@ -90,9 +96,7 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
             fields,
             group.topDocSolrId,
             shard );
-        sdoc.positionInResponse = index;
 
-        resultsId.put(sdoc.id, sdoc);
         groups[index++] = new GroupDocs<BytesRef>(group.topDocScore,
             group.topDocScore,
             new TotalHits(1, TotalHits.Relation.EQUAL_TO), /* we don't know the actual number of hits in the group- we set it to 1 as we only keep track of the top doc */
@@ -107,11 +111,6 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
           groups,
           maxScore);
       rb.mergedTopGroups.put(groupField, topMergedGroups);
-
-      if(rb.resultIds == null) {
-        rb.resultIds = new HashMap<>();
-      }
-      rb.resultIds.putAll(resultsId);
     }
   }
 
