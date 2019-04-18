@@ -80,7 +80,6 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
 
       final GroupingSpecification groupingSpecification = rb.getGroupingSpec();
       final Sort groupSort = groupingSpecification.getGroupSort();
-      final String[] fields = groupingSpecification.getFields();
 
       GroupDocs<BytesRef>[] groups = new GroupDocs[mergedTopGroups.size()];
 
@@ -92,10 +91,10 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
         maxScore = Math.max(maxScore, group.topDocScore);
         final String shard = docIdToShard.get(group.topDocSolrId);
         assert(shard != null);
-        ShardDoc sdoc = new ShardDoc(group.topDocScore,
-            fields,
-            group.topDocSolrId,
-            shard );
+        final ShardDoc sdoc = new ShardDoc();
+        sdoc.score = group.topDocScore;
+        sdoc.id = group.topDocSolrId;
+        sdoc.shard = shard;
 
         groups[index++] = new GroupDocs<BytesRef>(group.topDocScore,
             group.topDocScore,
