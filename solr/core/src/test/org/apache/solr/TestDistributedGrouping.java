@@ -327,13 +327,13 @@ public class TestDistributedGrouping extends BaseDistributedSearchTestCase {
     
     //Debug
     simpleQuery("q", "*:*", "rows", 10, "fl", "id," + i1, "group", "true", "group.field", i1, "debug", "true");
-    testGroupSkipSecondStep();
+    doTestGroupSkipSecondStep();
   }
 
   /*
     SOLR-11831, test skipping the second grouping step if the query only retrieves on document per group
    */
-  private void testGroupSkipSecondStep() throws Exception {
+  private void doTestGroupSkipSecondStep() throws Exception {
     // Ignore numFound if group.skip.second.step is enabled because the number of documents per group will not be computed (will default to 1)
     handle.put("numFound", SKIP);
     query("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true, "group.limit", 1,  "fl",  "id," + i1, "group", "true",
