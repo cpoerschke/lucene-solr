@@ -238,14 +238,11 @@ public class QueryComponent extends SearchComponent
     final int limit =  withinGroupSpecification.getCount();
     final int offset = withinGroupSpecification.getOffset();
     if ( limit != 1 || offset != 0 ) {
-        log.error("{}=true is not compatible with group.limit (limit={}) ", GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND, limit);
         return false;
     }
 
     // Within group sort must be the same as group sort because if we skip second step no sorting within group will be done.
     if (withinGroupSpecification.getSort() !=  groupSort.getSort()) {
-        log.error("{}=true is not compatible with group.sort ({}) != sort ({})",  GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND,
-                  withinGroupSpecification.getSort(), groupSort.getSort());
         return false;
     }
 
@@ -259,13 +256,11 @@ public class QueryComponent extends SearchComponent
 
     // TODO: At the moment the optimization is only supported when we are sorting by relevance only
     if(!byRelevanceOnly) {
-        log.error("{}=true is not compatible with sort={}", GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND, sortFields);
         return false;
     }
 
     // TODO: At the moment the optimization does not support reranking
     if(isReranking) {
-        log.error("{}=true is not compatible with reranking",  GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND);
         return false;
     }
 
