@@ -233,6 +233,22 @@ public class QueryComponent extends SearchComponent
     }
   }
 
+  // check if prefix is a prefix of the array
+  private static boolean isPrefix(SortField[] prefix, SortField[] array){
+    if (prefix == null || array == null) return false;
+    if (prefix.length > array.length) return false;
+    // if we are here, prefix.length <= array.length
+    for (int i = 0; i < prefix.length; i++){
+      // we check if the element at position i matches
+      if (! prefix[i].equals(array[i])){
+        // if not is not a prefix
+        return false;
+      }
+    }
+    //.. other it is
+    return true;
+  }
+
   private boolean allowSkipSecondGroupingStep(final SortSpec withinGroupSpecification, final SortSpec groupSort, final boolean isReranking) {
     // Only possible if we only want one doc per group
     final int limit =  withinGroupSpecification.getCount();
@@ -241,25 +257,16 @@ public class QueryComponent extends SearchComponent
         return false;
     }
 
+    final SortField[] withinGroupSortFields = withinGroupSpecification.getSort().getSort();
+    final SortField[] groupSortFields = groupSort.getSort().getSort();
+
     // Within group sort must be the same as group sort because if we skip second step no sorting within group will be done.
-    if (withinGroupSpecification.getSort() !=  groupSort.getSort()) {
+    if (! isPrefix(withinGroupSortFields, groupSortFields)) {
+        System.out.println("Not prefix" + Arrays.toString(withinGroupSortFields)+ " , "+Arrays.toString(groupSortFields) );
         return false;
     }
 
-    boolean byRelevanceOnly = false;
-    final SortField[] sortFields = withinGroupSpecification.getSort().getSort();
-
-    // TODO: uncomment-and-adjust the commented out if-clause below
-    if(sortFields != null && sortFields.length == 1 && sortFields[0] != null /* && sortFields[0].getComparator() instanceof FieldComparator.RelevanceComparator */) {
-      byRelevanceOnly = true;
-    }
-
-    // TODO: At the moment the optimization is only supported when we are sorting by relevance only
-    if(!byRelevanceOnly) {
-        return false;
-    }
-
-    // TODO: At the moment the optimization does not support reranking
+    // At the moment the optimization does not support reranking
     if(isReranking) {
         return false;
     }

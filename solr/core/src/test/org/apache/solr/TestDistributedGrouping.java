@@ -352,6 +352,16 @@ public class TestDistributedGrouping extends BaseDistributedSearchTestCase {
     // group sorted in a different way should fail
     assertSimpleQueryThrows("q", "{!func}id_i1", "group.skip.second.step", true, "fl", "id," + i1, "group", "true", "group.field", i1, "group.limit", 0, "sort", i1+" desc");
     assertSimpleQueryThrows("q", "{!func}id_i1", "group.skip.second.step", true, "fl", "id," + i1, "group", "true", "group.field", i1, "group.limit", 0, "group.sort", i1+" desc");
+    query("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true,  "fl",  "id," + i1, "group", "true",
+        "group.field", i1, "sort", tlong+" desc,"+i1+" asc", "group.sort", tlong+" desc");
+
+    query("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true,  "fl",  "id," + i1, "group", "true",
+        "group.field", i1, "sort", tlong+" desc,"+i1+" asc", "group.sort", tlong+" desc");
+    query("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true,  "fl",  "id," + i1, "group", "true",
+        "group.field", i1, "sort", tlong+" desc,"+i1+" asc", "group.sort", tlong+" desc,"+ i1+" asc");
+    // not a prefix, should fail
+    assertSimpleQueryThrows("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true,  "fl",  "id," + i1, "group", "true",
+        "group.field", i1, "sort", tlong+" desc,"+i1+" asc", "group.sort",i1+" asc,"+tlong+" desc");
 
     handle.remove("numFound");
   }
