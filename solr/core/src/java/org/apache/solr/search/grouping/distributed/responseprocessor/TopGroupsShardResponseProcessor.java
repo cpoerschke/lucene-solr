@@ -115,7 +115,7 @@ public class TopGroupsShardResponseProcessor implements ShardResponseProcessor {
         continue; // continue if there was an error and we're tolerant.  
       }
       NamedList<NamedList> secondPhaseResult = (NamedList<NamedList>) srsp.getSolrResponse().getResponse().get("secondPhase");
-      if(secondPhaseResult == null)
+      if (secondPhaseResult == null)
         continue;
       Map<String, ?> result = serializer.transformToNative(secondPhaseResult, groupSort, withinGroupSort, srsp.getShard());
       int numFound = 0;
@@ -188,7 +188,11 @@ public class TopGroupsShardResponseProcessor implements ShardResponseProcessor {
       }
       rb.mergedQueryCommandResults.put(query, new QueryCommandResult(mergedTopDocs, mergedMatches, maxScore));
     }
+    fillResultIds(rb);
+  }
 
+
+  static void fillResultIds(ResponseBuilder rb){
     Map<Object, ShardDoc> resultIds = new HashMap<>();
     int i = 0;
     for (TopGroups<BytesRef> topGroups : rb.mergedTopGroups.values()) {
