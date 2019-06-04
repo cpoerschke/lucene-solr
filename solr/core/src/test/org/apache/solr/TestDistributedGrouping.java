@@ -363,6 +363,16 @@ public class TestDistributedGrouping extends BaseDistributedSearchTestCase {
     assertSimpleQueryThrows("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true,  "fl",  "id," + i1, "group", "true",
         "group.field", i1, "sort", tlong+" desc,"+i1+" asc", "group.sort",i1+" asc,"+tlong+" desc");
 
+    // check group.main == true
+    query("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true,  "fl",  "id," + i1, "group", "true",
+        "group.field", i1, "sort", tlong+" desc,"+i1+" asc", "group.sort", tlong+" desc", "group.main", true);
+    query("q", "kings", "group.skip.second.step", true, "fl", "id," + i1, "group", "true", "group.field", i1, "group.main", true);
+    // check group.format == simple
+    query("q", "{!func}id_i1", "rows", 3, "group.skip.second.step", true,  "fl",  "id," + i1, "group", "true",
+        "group.field", i1, "sort", tlong+" desc,"+i1+" asc", "group.sort", tlong+" desc", "group.format", "simple");
+    query("q", "kings", "group.skip.second.step", true, "fl", "id," + i1, "group", "true", "group.field", i1, "group.format", "simple");
+
+
     handle.remove("numFound");
   }
 
