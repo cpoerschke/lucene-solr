@@ -72,8 +72,7 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
       super.addSearchGroupToShards(rb, groupField, mergedTopGroups);
 
       final GroupingSpecification groupingSpecification = rb.getGroupingSpec();
-      final Sort groupSort = groupingSpecification.getGroupSort();
-      final String[] fields = groupingSpecification.getFields();
+      final Sort groupSort = groupingSpecification.getGroupSortSpec().getSort();
 
       GroupDocs<BytesRef>[] groups = new GroupDocs[mergedTopGroups.size()];
       Map<Object, ShardDoc> resultsId = new HashMap<>(mergedTopGroups.size());
@@ -86,14 +85,14 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
         maxScore = Math.max(maxScore, group.topDocScore);
         final String shard = docIdToShard.get(group.topDocSolrId);
         assert(shard != null);
-        ShardDoc sdoc = new ShardDoc(group.topDocScore,
-            fields,
-            group.topDocSolrId,
-            shard );
+        final ShardDoc sdoc = new ShardDoc();
+        sdoc.score = group.topDocScore;
+        sdoc.id = group.topDocSolrId;
+        sdoc.shard = shard;
         sdoc.positionInResponse = index;
 
         resultsId.put(sdoc.id, sdoc);
-        groups[index++] = new GroupDocs<BytesRef>(group.topDocScore,
+        groups[index++] = new GroupDocs<>(group.topDocScore,
             group.topDocScore,
             new TotalHits(1, TotalHits.Relation.EQUAL_TO), /* we don't know the actual number of hits in the group- we set it to 1 as we only keep track of the top doc */
             new ShardDoc[] { sdoc }, /* only top doc */
@@ -101,7 +100,7 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
             group.sortValues);
       }
       TopGroups<BytesRef> topMergedGroups = new TopGroups<BytesRef>(groupSort.getSort(),
-          rb.getGroupingSpec().getSortWithinGroup().getSort(),
+          rb.getGroupingSpec().getWithinGroupSortSpec().getSort().getSort(),
           0, /*Set totalHitCount to 0 as we can't computed it as is */
           0, /*Set totalGroupedHitCount to 0 as we can't computed it as is*/
           groups,
