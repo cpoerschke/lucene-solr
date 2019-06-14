@@ -331,11 +331,12 @@ public class QueryComponent extends SearchComponent
     groupingSpec.setNeedScore((rb.getFieldFlags() & SolrIndexSearcher.GET_SCORES) != 0);
     groupingSpec.setTruncateGroups(params.getBool(GroupParams.GROUP_TRUNCATE, false));
 
-    groupingSpec.setSkipSecondGroupingStep(params.getBool(GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND, GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND_DEFAULT));
-    boolean isReranking = (rb.getRankQuery() != null);
-    if (groupingSpec.isSkipSecondGroupingStep() & !allowSkipSecondGroupingStep(groupingSpec.getWithinGroupSortSpec(), groupingSpec.getGroupSortSpec(), isReranking)){
-      throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
-          "Illegal grouping specification for skip second step optimization: " + groupingSpec.toString());
+    if (params.getBool(GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND, GroupParams.GROUP_SKIP_DISTRIBUTED_SECOND_DEFAULT)) {
+      groupingSpec.setSkipSecondGroupingStep(true);
+      if (!groupingSpec.validate() || rb.getRankQuery() != null) {
+        throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
+            "Illegal grouping specification for skip second step optimization: " + groupingSpec.toString());
+      }
     }
   }
 

@@ -44,6 +44,16 @@ public class GroupingSpecification {
   */
   private boolean skipSecondGroupingStep;
 
+  /**
+   * Optionally call this method after all the setters to check
+   * if the combination of settings makes sense.
+   * @return false if settings don't make sense, true otherwise
+   */
+  public boolean validate() {
+    // TODO
+    return true;
+  }
+
   public String[] getFields() {
     return fields;
   }
