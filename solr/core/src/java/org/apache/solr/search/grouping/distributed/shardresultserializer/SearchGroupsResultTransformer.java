@@ -17,7 +17,6 @@
 package org.apache.solr.search.grouping.distributed.shardresultserializer;
 
 import org.apache.lucene.document.Document;
-import org.apache.lucene.document.DocumentStoredFieldVisitor;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.grouping.SearchGroup;
@@ -26,7 +25,6 @@ import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.CharsRefBuilder;
 import org.apache.solr.common.SolrException;
 import org.apache.solr.common.util.NamedList;
-import org.apache.solr.schema.IndexSchema;
 import org.apache.solr.schema.SchemaField;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.search.grouping.Command;
@@ -36,6 +34,7 @@ import org.apache.solr.search.grouping.distributed.command.SearchGroupsFieldComm
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -169,8 +168,11 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
     private static final String TOP_DOC_SCORE_KEY = "topDocScore";
     private static final String SORTVALUES_KEY  = "sortValues";
 
+    private final SchemaField uniqueField;
+
     public SkipSecondStepSearchResultResultTransformer(SolrIndexSearcher searcher) {
       super(searcher);
+      this.uniqueField = searcher.getSchema().getUniqueKeyField();
     }
 
     @Override
@@ -192,8 +194,6 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
 
     @Override
     protected Object serializeOneSearchGroup(SearchGroup<BytesRef> searchGroup, SearchGroupsFieldCommand command) {
-      final IndexSchema schema = searcher.getSchema();
-      SchemaField uniqueField = schema.getUniqueKeyField();
 
       Document luceneDoc = null;
       /** Use the lucene id to get the unique solr id so that it can be sent to the federator.
@@ -202,24 +202,18 @@ public abstract class SearchGroupsResultTransformer implements ShardResultTransf
        * to be unique so this is what we need to return to the federator
        **/
       try {
-        luceneDoc = retrieveDocument(uniqueField, searchGroup.topDocLuceneId);
+        luceneDoc =  searcher.doc(searchGroup.topDocLuceneId, Collections.singleton(uniqueField.getName()));
       } catch (IOException e) {
         throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "Cannot retrieve document for unique field " + uniqueField + " ("+e.toString()+")");
       }
       Object topDocSolrId = uniqueField.getType().toExternal(luceneDoc.getField(uniqueField.getName()));
-      NamedList<Object> groupInfo = new NamedList<>(5);
+      NamedList<Object> groupInfo = new NamedList<>(5); // TODO: comment re: why 5 (and not 3)
       groupInfo.add(TOP_DOC_SCORE_KEY, searchGroup.topDocScore);
       groupInfo.add(TOP_DOC_SOLR_ID_KEY, topDocSolrId);
 
       Object convertedSortValues = super.serializeOneSearchGroup(searchGroup, command);
       groupInfo.add(SORTVALUES_KEY, convertedSortValues);
       return groupInfo;
-    }
-
-    private Document retrieveDocument(final SchemaField uniqueField, int doc) throws IOException {
-      DocumentStoredFieldVisitor visitor = new DocumentStoredFieldVisitor(uniqueField.getName());
-      searcher.doc(doc, visitor);
-      return visitor.getDocument();
     }
   }
 }
