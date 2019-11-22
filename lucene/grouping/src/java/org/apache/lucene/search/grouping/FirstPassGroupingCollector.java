@@ -137,16 +137,28 @@ public class FirstPassGroupingCollector<T> extends SimpleCollector {
         continue;
       }
       // System.out.println("  group=" + (group.groupValue == null ? "null" : group.groupValue.toString()));
-      SearchGroup<T> searchGroup = new SearchGroup<>();
-      searchGroup.groupValue = group.groupValue;
-      searchGroup.sortValues = new Object[sortFieldCount];
-      for(int sortFieldIDX=0;sortFieldIDX<sortFieldCount;sortFieldIDX++) {
-        searchGroup.sortValues[sortFieldIDX] = comparators[sortFieldIDX].value(group.comparatorSlot);
-      }
+      SearchGroup<T> searchGroup = newSearchGroupFromCollectedSearchGroup(group, comparators, sortFieldCount);
       result.add(searchGroup);
     }
     //System.out.println("  return " + result.size() + " groups");
     return result;
+  }
+
+  protected SearchGroup<T> newSearchGroup() {
+    return new SearchGroup<>();
+  }
+
+  protected SearchGroup<T> newSearchGroupFromCollectedSearchGroup(
+      CollectedSearchGroup<T> group,
+      FieldComparator<?>[] comparators,
+      int sortFieldCount) {
+    SearchGroup<T> searchGroup = newSearchGroup();
+    searchGroup.groupValue = group.groupValue;
+    searchGroup.sortValues = new Object[sortFieldCount];
+    for(int sortFieldIDX=0;sortFieldIDX<sortFieldCount;sortFieldIDX++) {
+      searchGroup.sortValues[sortFieldIDX] = comparators[sortFieldIDX].value(group.comparatorSlot);
+    }
+    return searchGroup;
   }
 
   @Override

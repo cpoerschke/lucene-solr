@@ -76,7 +76,12 @@ public class SearchGroup<T> {
     return groupValue != null ? groupValue.hashCode() : 0;
   }
 
-  private static class ShardIter<T> {
+  /**
+   * Iterator for all the groups on a shard
+   *
+   * @lucene.experimental
+   */
+  protected static class ShardIter<T> {
     public final Iterator<SearchGroup<T>> iter;
     public final int shardIndex;
 
@@ -101,8 +106,16 @@ public class SearchGroup<T> {
     }
   }
 
-  // Holds all shards currently on the same group
-  private static class MergedGroup<T> {
+  protected MergedGroup<T> newMergedGroup() {
+    return new MergedGroup<>(this.groupValue);
+  }
+
+  /**
+   * Holds all shards currently on the same group
+   *
+   * @lucene.experimental
+   */
+  protected static class MergedGroup<T> {
 
     // groupValue may be null!
     public final T groupValue;
@@ -115,6 +128,25 @@ public class SearchGroup<T> {
 
     public MergedGroup(T groupValue) {
       this.groupValue = groupValue;
+    }
+
+    private SearchGroup<T> toSearchGroup() {
+      final SearchGroup<T> searchGroup = newSearchGroup();
+      fillSearchGroup(searchGroup);
+      return searchGroup;
+    }
+
+    protected SearchGroup<T> newSearchGroup() {
+      return new SearchGroup<T>();
+    }
+
+    protected void fillSearchGroup(SearchGroup<T> searchGroup) {
+      searchGroup.groupValue = this.groupValue;
+      searchGroup.sortValues = this.topValues;
+    }
+
+    protected void update(SearchGroup<T> group) {
+      this.topValues = group.sortValues;
     }
 
     // Only for assert
@@ -224,7 +256,7 @@ public class SearchGroup<T> {
         if (isNew) {
           // Start a new group:
           //System.out.println("      new");
-          mergedGroup = new MergedGroup<>(group.groupValue);
+          mergedGroup = group.newMergedGroup();
           mergedGroup.minShardIndex = shard.shardIndex;
           assert group.sortValues != null;
           mergedGroup.topValues = group.sortValues;
@@ -262,7 +294,7 @@ public class SearchGroup<T> {
             if (mergedGroup.inQueue) {
               queue.remove(mergedGroup);
             }
-            mergedGroup.topValues = group.sortValues;
+            mergedGroup.update(group);
             mergedGroup.minShardIndex = shard.shardIndex;
             queue.add(mergedGroup);
             mergedGroup.inQueue = true;
@@ -305,9 +337,7 @@ public class SearchGroup<T> {
         group.processed = true;
         //System.out.println("  pop: shards=" + group.shards + " group=" + (group.groupValue == null ? "null" : (((BytesRef) group.groupValue).utf8ToString())) + " sortValues=" + Arrays.toString(group.topValues));
         if (count++ >= offset) {
-          final SearchGroup<T> newGroup = new SearchGroup<>();
-          newGroup.groupValue = group.groupValue;
-          newGroup.sortValues = group.topValues;
+          final SearchGroup<T> newGroup = group.toSearchGroup();
           newTopGroups.add(newGroup);
           if (newTopGroups.size() == topN) {
             break;
