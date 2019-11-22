@@ -35,6 +35,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.SchemaField;
 import org.apache.solr.search.grouping.Command;
+import org.apache.solr.search.grouping.SolrFirstPassGroupingCollector;
 
 /**
  * Creates all the collectors needed for the first phase and how to handle the results.
@@ -103,8 +104,9 @@ public class SearchGroupsFieldCommand implements Command<SearchGroupsFieldComman
         firstPassGroupingCollector
             = new FirstPassGroupingCollector<>(new ValueSourceGroupSelector(vs, new HashMap<>()), groupSort, topNGroups);
       } else {
+        // TODO: is this the right place for FirstPassGroupingCollector vs. SolrFirstPassGroupingCollector differentiation?
         firstPassGroupingCollector
-            = new FirstPassGroupingCollector<>(new TermGroupSelector(field.getName()), groupSort, topNGroups);
+            = new SolrFirstPassGroupingCollector<>(new TermGroupSelector(field.getName()), groupSort, topNGroups);
       }
       collectors.add(firstPassGroupingCollector);
     }

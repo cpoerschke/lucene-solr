@@ -732,6 +732,7 @@ public class Grouping {
       }
 
       groupSort = groupSort == null ? Sort.RELEVANCE : groupSort;
+      // TODO: is this the right place for FirstPassGroupingCollector vs. SolrFirstPassGroupingCollector differentiation?
       firstPass = new FirstPassGroupingCollector<>(new TermGroupSelector(groupBy), groupSort, actualGroupsToFind);
       return firstPass;
     }
@@ -948,6 +949,8 @@ public class Grouping {
       }
 
       groupSort = groupSort == null ? Sort.RELEVANCE : groupSort;
+      // no FirstPassGroupingCollector vs. SolrFirstPassGroupingCollector differentiation here
+      // since group.skip.second.step is not supported for grouping on a function
       firstPass = new FirstPassGroupingCollector<>(newSelector(), searcher.weightSort(groupSort), actualGroupsToFind);
       return firstPass;
     }
