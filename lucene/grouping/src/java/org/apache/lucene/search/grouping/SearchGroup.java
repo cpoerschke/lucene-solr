@@ -48,25 +48,9 @@ public class SearchGroup<T> {
    * been passed to {@link FirstPassGroupingCollector#getTopGroups} */
   public Object[] sortValues;
 
-  /** The top doc of this group: we track the Lucene id,
-   * the Solr id and the score of the document */
-  public Object topDocSolrId;
-  public float topDocScore;
-
-  /** The topDocLuceneId will be null at the federator level because it is unique only at the shard level.
-   * It is used by the shard to get the corresponding solr id when serializing the search group to send to the federator
-   */
-  public int topDocLuceneId;
-
   @Override
   public String toString() {
-    return "SearchGroup{" +
-        "groupValue=" + groupValue +
-        ", sortValues=" + Arrays.toString(sortValues) +
-        ", topDocSolrId=" + topDocSolrId +
-        ", topDocScore=" + topDocScore +
-        ", topDocLuceneId=" + topDocLuceneId +
-        '}';
+    return("SearchGroup(groupValue=" + groupValue + " sortValues=" + Arrays.toString(sortValues) + ")");
   }
 
   @Override
@@ -128,11 +112,6 @@ public class SearchGroup<T> {
     public int minShardIndex;
     public boolean processed;
     public boolean inQueue;
-
-    /** The top doc of this group:
-     * the Solr id and the score of the document */
-    public float topDocScore;
-    public Object topDocSolrId;
 
     public MergedGroup(T groupValue) {
       this.groupValue = groupValue;
@@ -246,8 +225,6 @@ public class SearchGroup<T> {
           // Start a new group:
           //System.out.println("      new");
           mergedGroup = new MergedGroup<>(group.groupValue);
-          mergedGroup.topDocSolrId = group.topDocSolrId;
-          mergedGroup.topDocScore = group.topDocScore;
           mergedGroup.minShardIndex = shard.shardIndex;
           assert group.sortValues != null;
           mergedGroup.topValues = group.sortValues;
@@ -285,8 +262,6 @@ public class SearchGroup<T> {
             if (mergedGroup.inQueue) {
               queue.remove(mergedGroup);
             }
-            mergedGroup.topDocScore = group.topDocScore;
-            mergedGroup.topDocSolrId = group.topDocSolrId;
             mergedGroup.topValues = group.sortValues;
             mergedGroup.minShardIndex = shard.shardIndex;
             queue.add(mergedGroup);
@@ -333,8 +308,6 @@ public class SearchGroup<T> {
           final SearchGroup<T> newGroup = new SearchGroup<>();
           newGroup.groupValue = group.groupValue;
           newGroup.sortValues = group.topValues;
-          newGroup.topDocSolrId = group.topDocSolrId;
-          newGroup.topDocScore = group.topDocScore;
           newTopGroups.add(newGroup);
           if (newTopGroups.size() == topN) {
             break;
