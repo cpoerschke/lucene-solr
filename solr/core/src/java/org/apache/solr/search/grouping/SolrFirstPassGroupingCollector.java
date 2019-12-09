@@ -45,11 +45,12 @@ public class SolrFirstPassGroupingCollector<T> extends FirstPassGroupingCollecto
 
     solrSearchGroup.topDocLuceneId = group.topDoc;
 
-    // TODO: this is out-of-date w.r.t. the pull request
-    if (sortFieldCount > 0 && comparators[0] instanceof FieldComparator.RelevanceComparator ){
-      solrSearchGroup.topDocScore = (Float)comparators[0].value(group.comparatorSlot);
-    } else {
-      solrSearchGroup.topDocScore = -1;
+    solrSearchGroup.topDocScore = Float.NaN;
+    // if there is the score comparator we want to return the score
+    for (FieldComparator comparator: comparators) {
+      if (comparator instanceof FieldComparator.RelevanceComparator) {
+        solrSearchGroup.topDocScore = (Float)comparator.value(group.comparatorSlot);
+      }
     }
 
     return solrSearchGroup;

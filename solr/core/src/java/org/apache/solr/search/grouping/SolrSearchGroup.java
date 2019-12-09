@@ -41,10 +41,12 @@ public class SolrSearchGroup<T> extends SearchGroup<T> {
       super(groupValue);
     }
 
+    @Override
     protected SearchGroup<T> newSearchGroup() {
       return new SolrSearchGroup<T>();
     }
 
+    @Override
     protected void fillSearchGroup(SearchGroup<T> searchGroup) {
       super.fillSearchGroup(searchGroup);
       ((SolrSearchGroup<T>)searchGroup).topDocScore = this.topDocScore;
