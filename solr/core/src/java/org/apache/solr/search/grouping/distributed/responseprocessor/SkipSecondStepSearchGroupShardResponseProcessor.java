@@ -31,7 +31,7 @@ import org.apache.solr.handler.component.ShardRequest;
 import org.apache.solr.handler.component.ShardResponse;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.search.grouping.GroupingSpecification;
-import org.apache.solr.search.grouping.SolrSearchGroup;
+import org.apache.solr.search.grouping.SkipSecondPassFirstPassGroupingCollector;
 import org.apache.solr.search.grouping.distributed.shardresultserializer.SearchGroupsResultTransformer;
 import org.apache.solr.search.grouping.distributed.shardresultserializer.SkipSecondStepSearchResultResultTransformer;
 
@@ -66,8 +66,8 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
       super.addSearchGroups(srsp, field, searchGroups);
       for (SearchGroup<BytesRef> searchGroup : searchGroups) {
         assert(srsp.getShard() != null);
-        assert(searchGroup instanceof SolrSearchGroup);
-        SolrSearchGroup<BytesRef> solrSearchGroup = (SolrSearchGroup<BytesRef>)searchGroup;
+        assert(searchGroup instanceof SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup);
+        SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef> solrSearchGroup = (SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef>)searchGroup;
         docIdToShard.put(solrSearchGroup.topDocSolrId, srsp.getShard());
       }
     }
@@ -94,8 +94,8 @@ public class SkipSecondStepSearchGroupShardResponseProcessor extends SearchGroup
 
       for (SearchGroup<BytesRef> mergedTopGroup : mergedTopGroups) {
 
-        assert(mergedTopGroup instanceof SolrSearchGroup);
-        SolrSearchGroup<BytesRef> group = (SolrSearchGroup<BytesRef>)mergedTopGroup;
+        assert(mergedTopGroup instanceof SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup);
+        SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef> group = (SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef>)mergedTopGroup;
 
         if (! Float.isNaN(group.topDocScore)) {
           maxScore = Math.max(maxScore, group.topDocScore);

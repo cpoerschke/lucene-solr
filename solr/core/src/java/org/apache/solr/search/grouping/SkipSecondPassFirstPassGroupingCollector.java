@@ -23,9 +23,63 @@ import org.apache.lucene.search.grouping.FirstPassGroupingCollector;
 import org.apache.lucene.search.grouping.GroupSelector;
 import org.apache.lucene.search.grouping.SearchGroup;
 
-public class SolrFirstPassGroupingCollector<T> extends FirstPassGroupingCollector<T> {
+/**
+ * A {@link FirstPassGroupingCollector} that gathers extra information so that (in certain scenarios)
+ * the second pass grouping can be skipped.
+ */
+public class SkipSecondPassFirstPassGroupingCollector<T> extends FirstPassGroupingCollector<T> {
 
-  public SolrFirstPassGroupingCollector(GroupSelector<T> groupSelector, Sort groupSort, int topNGroups) {
+  /**
+   * A {@link SearchGroup} that contains extra information so that (in certain scenarios)
+   * the second pass grouping can be skipped.
+   */
+  public static class SolrSearchGroup<T> extends org.apache.lucene.search.grouping.SearchGroup<T> {
+
+    public int topDocLuceneId;
+    public float topDocScore;
+    public Object topDocSolrId;
+
+    @Override
+    protected MergedGroup<T> newMergedGroup() {
+      SolrMergedGroup<T> mergedGroup = new SolrMergedGroup<>(this.groupValue);
+      mergedGroup.topDocScore = this.topDocScore;
+      mergedGroup.topDocSolrId = this.topDocSolrId;
+      return mergedGroup;
+    }
+
+    private static class SolrMergedGroup<T> extends org.apache.lucene.search.grouping.SearchGroup.MergedGroup<T> {
+
+      public float topDocScore;
+      public Object topDocSolrId;
+
+      public SolrMergedGroup(T groupValue) {
+        super(groupValue);
+      }
+
+      @Override
+      protected SearchGroup<T> newSearchGroup() {
+        return new SolrSearchGroup<T>();
+      }
+
+      @Override
+      protected void fillSearchGroup(SearchGroup<T> searchGroup) {
+        super.fillSearchGroup(searchGroup);
+        ((SolrSearchGroup<T>)searchGroup).topDocScore = this.topDocScore;
+        ((SolrSearchGroup<T>)searchGroup).topDocSolrId = this.topDocSolrId;
+      }
+
+      @Override
+      public void update(SearchGroup<T> searchGroup) {
+        super.update(searchGroup);
+        this.topDocScore = ((SolrSearchGroup<T>)searchGroup).topDocScore;
+        this.topDocSolrId = ((SolrSearchGroup<T>)searchGroup).topDocSolrId;
+      }
+
+    }
+
+  }
+
+  public SkipSecondPassFirstPassGroupingCollector(GroupSelector<T> groupSelector, Sort groupSort, int topNGroups) {
     super(groupSelector, groupSort, topNGroups);
   }
 

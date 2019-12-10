@@ -35,7 +35,7 @@ import org.apache.lucene.util.mutable.MutableValueLong;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.NumberType;
 import org.apache.solr.schema.SchemaField;
-import org.apache.solr.search.grouping.SolrSearchGroup;
+import org.apache.solr.search.grouping.SkipSecondPassFirstPassGroupingCollector;
 
 /** 
  * this is a transition class: for numeric types we use function-based distributed grouping,
@@ -52,9 +52,9 @@ class GroupConverter {
     List<SearchGroup<BytesRef>> result = new ArrayList<>(values.size());
     for (SearchGroup<MutableValue> original : values) {
       final SearchGroup<BytesRef> converted;
-      if (original instanceof SolrSearchGroup) {
-        SolrSearchGroup<MutableValue> solrOriginal = (SolrSearchGroup<MutableValue>)original;
-        SolrSearchGroup<BytesRef> solrConverted = new SolrSearchGroup<BytesRef>();
+      if (original instanceof SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup) {
+        SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<MutableValue> solrOriginal = (SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<MutableValue>)original;
+        SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef> solrConverted = new SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef>();
         solrConverted.topDocLuceneId = solrOriginal.topDocLuceneId;
         solrConverted.topDocScore = solrOriginal.topDocScore;
         converted = solrConverted;

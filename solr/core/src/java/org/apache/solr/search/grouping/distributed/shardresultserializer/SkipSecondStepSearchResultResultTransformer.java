@@ -30,7 +30,7 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.schema.SchemaField;
 import org.apache.solr.search.SolrIndexSearcher;
-import org.apache.solr.search.grouping.SolrSearchGroup;
+import org.apache.solr.search.grouping.SkipSecondPassFirstPassGroupingCollector;
 
 /**
  * Extends {@link SearchGroupsResultTransformer} and overrides the <code>serializeOneSearchGroup</code>,
@@ -61,15 +61,15 @@ public class SkipSecondStepSearchResultResultTransformer extends SearchGroupsRes
 
   @Override
   protected SearchGroup<BytesRef> newSearchGroup() {
-    return new SolrSearchGroup<>();
+    return new SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<>();
   }
 
   @Override
   protected SearchGroup<BytesRef> deserializeOneSearchGroup(SchemaField groupField, String groupValue,
                                                             SortField[] groupSortField, Object rawSearchGroupData) {
     SearchGroup<BytesRef> searchGroup = super.deserializeOneSearchGroup(groupField, groupValue, groupSortField, rawSearchGroupData);
-    if (searchGroup instanceof SolrSearchGroup) {
-      SolrSearchGroup<BytesRef> solrSearchGroup = (SolrSearchGroup<BytesRef>)searchGroup;
+    if (searchGroup instanceof SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup) {
+      SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef> solrSearchGroup = (SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef>)searchGroup;
       NamedList<Object> groupInfo = (NamedList) rawSearchGroupData;
       solrSearchGroup.topDocLuceneId = DocIdSetIterator.NO_MORE_DOCS;
       solrSearchGroup.topDocScore = (float) groupInfo.get(TOP_DOC_SCORE_KEY);
@@ -81,8 +81,8 @@ public class SkipSecondStepSearchResultResultTransformer extends SearchGroupsRes
   @Override
   protected Object serializeOneSearchGroup(SortField[] groupSortField, SearchGroup<BytesRef> luceneSearchGroup) {
 
-    assert(luceneSearchGroup instanceof SolrSearchGroup);
-    SolrSearchGroup<BytesRef> searchGroup = (SolrSearchGroup<BytesRef>)luceneSearchGroup;
+    assert(luceneSearchGroup instanceof SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup);
+    SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef> searchGroup = (SkipSecondPassFirstPassGroupingCollector.SolrSearchGroup<BytesRef>)luceneSearchGroup;
 
     Document luceneDoc = null;
     /** Use the lucene id to get the unique solr id so that it can be sent to the federator.

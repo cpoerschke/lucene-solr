@@ -36,7 +36,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.SchemaField;
 import org.apache.solr.search.grouping.Command;
-import org.apache.solr.search.grouping.SolrFirstPassGroupingCollector;
+import org.apache.solr.search.grouping.SkipSecondPassFirstPassGroupingCollector;
 
 /**
  * Creates all the collectors needed for the first phase and how to handle the results.
@@ -105,7 +105,7 @@ public class SearchGroupsFieldCommand implements Command<SearchGroupsFieldComman
 
   private  FirstPassGroupingCollector newFirstPassGroupingCollector(GroupSelector groupSelector, Sort groupSort, int topNGroups) {
     if (skipSecondGroupingStep) {
-      return new SolrFirstPassGroupingCollector<>(groupSelector, groupSort, topNGroups);
+      return new SkipSecondPassFirstPassGroupingCollector<>(groupSelector, groupSort, topNGroups);
     } else {
       return new FirstPassGroupingCollector<>(groupSelector, groupSort, topNGroups);
     }
