@@ -44,7 +44,6 @@ import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.PluginInfo;
 import org.apache.solr.core.SolrConfig;
 import org.apache.solr.core.SolrCore;
-import org.apache.solr.handler.StreamHandler.ExpressibleHolder;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
 import org.apache.solr.security.AuthorizationContext;
@@ -68,7 +67,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </p>
  * <p>
- * The @deprecated configuration method as of Solr 8.4 is
+ * The @deprecated configuration method as of Solr 8.5 is
   * {@code
  *  &lt;lst name="streamFunctions"&gt;
  *    &lt;str name="group"&gt;org.apache.solr.client.solrj.io.stream.ReducerStream&lt;/str&gt;
@@ -104,7 +103,7 @@ public class GraphHandler extends RequestHandlerBase implements SolrCoreAware, P
     }
 
     // This pulls all the overrides and additions from the config
-    List<PluginInfo> pluginInfos = core.getSolrConfig().getPluginInfos(Expressible.class.getName());
+    StreamHandler.addExpressiblePlugins(streamFactory, core);
 
     // Check deprecated approach.
     Object functionMappingsObj = initArgs.get("streamFunctions");
@@ -114,19 +113,18 @@ public class GraphHandler extends RequestHandlerBase implements SolrCoreAware, P
       for(Entry<String,?> functionMapping : functionMappings) {
         String key = functionMapping.getKey();
         PluginInfo pluginInfo = new PluginInfo(key, Collections.singletonMap("class", functionMapping.getValue()));
-        pluginInfos.add(pluginInfo);
-      }
-    }
 
-    for (PluginInfo pluginInfo : pluginInfos) {
-      if (pluginInfo.pkgName != null) {
-        ExpressibleHolder holder = new ExpressibleHolder(pluginInfo, core, SolrConfig.classVsSolrPluginInfo.get(Expressible.class));
-        streamFactory.withFunctionName(pluginInfo.name,
-            () -> holder.getClazz());
-      } else {
-        Class<? extends Expressible> clazz = core.getMemClassLoader().findClass(pluginInfo.className, Expressible.class);
-        streamFactory.withFunctionName(pluginInfo.name, clazz);
+        if (pluginInfo.pkgName == null) {
+          Class<? extends Expressible> clazz = core.getResourceLoader().findClass((String) functionMapping.getValue(),
+              Expressible.class);
+          streamFactory.withFunctionName(key, clazz);
+        } else {
+          StreamHandler.ExpressibleHolder holder = new StreamHandler.ExpressibleHolder(pluginInfo, core, SolrConfig.classVsSolrPluginInfo.get(Expressible.class));
+          streamFactory.withFunctionName(key, () -> holder.getClazz());
+        }
+
       }
+
     }
   }
 
