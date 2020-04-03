@@ -223,18 +223,16 @@ public class SolrFeature extends Feature {
     /**
      * Scorer for a SolrFeature
      **/
-    public class SolrFeatureScorer extends FeatureScorer {
-      final private Scorer solrScorer;
+    public class SolrFeatureScorer extends FilterFeatureScorer {
 
       public SolrFeatureScorer(FeatureWeight weight, Scorer solrScorer) {
-        super(weight, solrScorer.iterator());
-        this.solrScorer = solrScorer;
+        super(weight, solrScorer);
       }
 
       @Override
       public float score() throws IOException {
         try {
-          return solrScorer.score();
+          return in.score();
         } catch (UnsupportedOperationException e) {
           throw new FeatureException(
               e.toString() + ": " +
@@ -243,12 +241,6 @@ public class SolrFeature extends Feature {
         }
       }
 
-      @Override
-      public float getMaxScore(int upTo) throws IOException {
-        return solrScorer.getMaxScore(upTo);
-      }
-
-      // TODO delegate more methods?
     }
   }
 }
