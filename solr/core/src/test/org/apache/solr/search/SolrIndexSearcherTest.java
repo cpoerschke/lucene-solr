@@ -27,10 +27,14 @@ import java.io.IOException;
 
 public class SolrIndexSearcherTest extends SolrTestCaseJ4 {
   
-  private final static int NUM_DOCS = 20;
+  private static int NUM_DOCS = 20;
 
   @BeforeClass
   public static void setUpClass() throws Exception {
+    if (random().nextBoolean()) {
+      // sometimes increase the number of docs to reduce test assumptions e.g. w.r.t. cache window size
+      NUM_DOCS += 10;
+    }
     initCore("solrconfig.xml", "schema.xml");
     for (int i = 0 ; i < NUM_DOCS ; i ++) {
       assertU(adoc("id", String.valueOf(i), "field1_s", "foo", "field2_s", String.valueOf(i % 2), "field3_s", String.valueOf(i)));
@@ -116,6 +120,12 @@ public class SolrIndexSearcherTest extends SolrTestCaseJ4 {
       QueryResult qr = new QueryResult();
       searcher.search(qr, cmd);
       assertMatchesEqual(NUM_DOCS, qr);
+      // caching does not confer exact count benefits on subsequent requests with lower min exact hits
+      while (0 < cmd.getMinExactHits()) {
+        cmd.setMinExactHits(cmd.getMinExactHits() - 1);
+        searcher.search(qr, cmd);
+        assertMatchesGraterThan(NUM_DOCS, qr);
+      }
       return null;
     });
     
@@ -126,6 +136,16 @@ public class SolrIndexSearcherTest extends SolrTestCaseJ4 {
       QueryResult qr = new QueryResult();
       searcher.search(qr, cmd);
       assertMatchesEqual(NUM_DOCS/2, qr);
+      // caching does sometimes confer exact count benefits on subsequent requests with lower min exact hits
+      while (0 < cmd.getMinExactHits()) {
+        cmd.setMinExactHits(cmd.getMinExactHits() - 1);
+        searcher.search(qr, cmd);
+        if (NUM_DOCS == 30 && cmd.getMinExactHits() < NUM_DOCS/2) {
+          assertMatchesGraterThan(NUM_DOCS/2, qr);
+        } else {
+          assertMatchesEqual(NUM_DOCS/2, qr);
+        }
+      }
       return null;
     });
   }
