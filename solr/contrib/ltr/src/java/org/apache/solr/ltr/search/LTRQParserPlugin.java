@@ -37,6 +37,8 @@ import org.apache.solr.ltr.LTRScoringQuery;
 import org.apache.solr.ltr.LTRThreadModule;
 import org.apache.solr.ltr.OriginalRankingLTRScoringQuery;
 import org.apache.solr.ltr.SolrQueryRequestContextUtils;
+import org.apache.solr.ltr.interleaving.Interleaving;
+import org.apache.solr.ltr.interleaving.TeamDraftInterleaving;
 import org.apache.solr.ltr.model.LTRScoringModel;
 import org.apache.solr.ltr.store.rest.ManagedFeatureStore;
 import org.apache.solr.ltr.store.rest.ManagedModelStore;
@@ -209,9 +211,18 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
         return new LTRQuery(rerankingQuery, reRankDocs);
       } else {
         SolrQueryRequestContextUtils.setScoringQueries(req, rerankingQueries);
-        return new LTRInterleavingQuery(rerankingQueries, reRankDocs);
+        final Interleaving interleavingAlgorithm = getInterleavingAlgorithm();
+        if (!interleavingAlgorithm.supports(rerankingQueries.length)) {
+          throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
+              "Interleaving of "+rerankingQueries.length+" models is not supported.");
+        }
+        return new LTRInterleavingQuery(rerankingQueries, reRankDocs, interleavingAlgorithm);
       }
     }
+  }
+
+  protected Interleaving getInterleavingAlgorithm() {
+    return new TeamDraftInterleaving();
   }
 
   /**
@@ -272,10 +283,12 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
    **/
   public class LTRInterleavingQuery extends LTRQuery {
     private final LTRInterleavingScoringQuery[] rerankingQueries;
+    private final Interleaving interleavingAlgorithm;
 
-    public LTRInterleavingQuery(LTRInterleavingScoringQuery[] rerankingQueries, int rerankDocs) {
-      super(null /* scoringQuery */, rerankDocs, new LTRInterleavingRescorer(rerankingQueries));
+    public LTRInterleavingQuery(LTRInterleavingScoringQuery[] rerankingQueries, int rerankDocs, Interleaving interleavingAlgorithm) {
+      super(null /* scoringQuery */, rerankDocs, new LTRInterleavingRescorer(rerankingQueries, interleavingAlgorithm));
       this.rerankingQueries = rerankingQueries;
+      this.interleavingAlgorithm = interleavingAlgorithm;
     }
 
     @Override
@@ -304,13 +317,13 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
 
     @Override
     public String toString(String field) {
-      return "{!ltr mainQuery='" + mainQuery.toString() + "' scoringQuery='"
+      return "{!ltr mainQuery='" + mainQuery.toString() + "' rerankingQueries='"
           + Arrays.toString(rerankingQueries) + "' reRankDocs=" + reRankDocs + "}";
     }
 
     @Override
     protected Query rewrite(Query rewrittenMainQuery) throws IOException {
-      return new LTRInterleavingQuery(rerankingQueries, reRankDocs).wrap(rewrittenMainQuery);
+      return new LTRInterleavingQuery(rerankingQueries, reRankDocs, interleavingAlgorithm).wrap(rewrittenMainQuery);
     }
   }
 

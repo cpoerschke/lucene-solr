@@ -20,5 +20,6 @@ package org.apache.solr.ltr.interleaving;
 import org.apache.lucene.search.ScoreDoc;
 
 public interface Interleaving {
-   InterleavingResult interleave(ScoreDoc[] rerankedA, ScoreDoc[] rerankedB);
+   InterleavingResult interleave(ScoreDoc[][] reranked);
+   boolean supports(int numInterleaved);
 }

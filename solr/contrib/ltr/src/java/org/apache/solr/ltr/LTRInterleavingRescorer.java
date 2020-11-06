@@ -29,7 +29,6 @@ import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.TopDocs;
 import org.apache.solr.ltr.interleaving.Interleaving;
 import org.apache.solr.ltr.interleaving.InterleavingResult;
-import org.apache.solr.ltr.interleaving.TeamDraftInterleaving;
 
 /**
  * Implements the rescoring logic. The top documents returned by solr with their
@@ -39,17 +38,20 @@ import org.apache.solr.ltr.interleaving.TeamDraftInterleaving;
  * */
 public class LTRInterleavingRescorer extends LTRRescorer {
   
-  LTRInterleavingScoringQuery[] rerankingQueries;
-  private Integer originalRankingIndex = null;
-  Interleaving interleavingAlgorithm = new TeamDraftInterleaving();
+  private final LTRInterleavingScoringQuery[] rerankingQueries;
+  private final Integer originalRankingIndex;
+  private final Interleaving interleavingAlgorithm;
   
-  public LTRInterleavingRescorer(LTRInterleavingScoringQuery[] rerankingQueries) {
+  public LTRInterleavingRescorer(LTRInterleavingScoringQuery[] rerankingQueries, Interleaving interleavingAlgorithm) {
     this.rerankingQueries = rerankingQueries;
+    Integer index = null;
     for(int i=0;i<this.rerankingQueries.length;i++){
       if(this.rerankingQueries[i] instanceof OriginalRankingLTRScoringQuery){
-        this.originalRankingIndex = i;
+        index = i;
       }
     }
+    this.originalRankingIndex = index;
+    this.interleavingAlgorithm = interleavingAlgorithm;
   }
 
   /**
@@ -80,12 +82,13 @@ public class LTRInterleavingRescorer extends LTRRescorer {
     if (originalRankingIndex != null) {
       reRankedPerModel[originalRankingIndex] = firstPassResults;
     }
-    InterleavingResult interleaved = interleavingAlgorithm.interleave(reRankedPerModel[0], reRankedPerModel[1]);
+    InterleavingResult interleaved = interleavingAlgorithm.interleave(reRankedPerModel);
     ScoreDoc[] interleavedResults = interleaved.getInterleavedResults();
     
     ArrayList<Set<Integer>> interleavingPicks = interleaved.getInterleavingPicks();
-    rerankingQueries[0].setPickedInterleavingDocIds(interleavingPicks.get(0));
-    rerankingQueries[1].setPickedInterleavingDocIds(interleavingPicks.get(1));
+    for (int i = 0; i < rerankingQueries.length; i++) {
+      rerankingQueries[i].setPickedInterleavingDocIds(interleavingPicks.get(i));
+    }
 
     return new TopDocs(firstPassTopDocs.totalHits, interleavedResults);
   }

@@ -38,8 +38,20 @@ public class TeamDraftInterleaving implements Interleaving{
       RANDOM = new Random(seed.hashCode());
     }
   }  
-  
-  public InterleavingResult interleave(ScoreDoc[] rerankedA, ScoreDoc[] rerankedB){
+
+  public boolean supports(int numInterleaved) {
+    return numInterleaved == 2;
+  }
+
+  public InterleavingResult interleave(ScoreDoc[][] reranked){
+    if (reranked.length != 2) {
+      return null;
+    } else {
+      return interleave(reranked[0], reranked[1]);
+    }
+  }
+
+  InterleavingResult interleave(ScoreDoc[] rerankedA, ScoreDoc[] rerankedB){
     LinkedHashSet<ScoreDoc> interleavedResults = new LinkedHashSet<>();
     ScoreDoc[] interleavedResultArray = new ScoreDoc[rerankedA.length];
     ArrayList<Set<Integer>> interleavingPicks = new ArrayList<>(2);
