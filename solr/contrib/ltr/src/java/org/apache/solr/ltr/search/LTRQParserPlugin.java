@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Random;
 
 import org.apache.lucene.util.ResourceLoader;
 import org.apache.lucene.util.ResourceLoaderAware;
@@ -84,6 +85,8 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
    * to rerank
    **/
   public static final String RERANK_DOCS = "reRankDocs";
+
+  private static final Random RANDOM = new Random();
 
   @Override
   @SuppressWarnings({"unchecked"})
@@ -222,7 +225,11 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
   }
 
   protected Interleaving getInterleavingAlgorithm() {
-    return new TeamDraftInterleaving();
+    return new TeamDraftInterleaving(getRandom());
+  }
+
+  protected Random getRandom() {
+    return RANDOM;
   }
 
   /**

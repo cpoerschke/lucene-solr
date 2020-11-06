@@ -21,8 +21,8 @@ import java.util.Random;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.ltr.TestRerankBase;
 import org.apache.solr.ltr.feature.SolrFeature;
-import org.apache.solr.ltr.interleaving.TeamDraftInterleaving;
 import org.apache.solr.ltr.model.LinearModel;
+import org.apache.solr.ltr.search.LTRQParserTestPlugin;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -81,7 +81,7 @@ public class TestFeatureLoggerTransformer extends TestRerankBase {
   
   @Test
   public void interleaving_featureTransformer_shouldWorkInSparseFormat() throws Exception {
-    TeamDraftInterleaving.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
+    LTRQParserTestPlugin.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
     loadFeaturesAndModels();
 
     final SolrQuery query = new SolrQuery();
@@ -118,7 +118,7 @@ public class TestFeatureLoggerTransformer extends TestRerankBase {
 
   @Test
   public void interleaving_featureTransformer_shouldWorkInDenseFormat() throws Exception {
-    TeamDraftInterleaving.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
+    LTRQParserTestPlugin.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
     loadFeaturesAndModels();
 
     final SolrQuery query = new SolrQuery();

@@ -26,18 +26,12 @@ import java.util.Set;
 import org.apache.lucene.search.ScoreDoc;
 
 public class TeamDraftInterleaving implements Interleaving{
-  public static Random RANDOM;
 
-  static {
-    // We try to make things reproducible in the context of our tests by initializing the random instance
-    // based on the current seed
-    String seed = System.getProperty("tests.seed");
-    if (seed == null) {
-      RANDOM = new Random();
-    } else {
-      RANDOM = new Random(seed.hashCode());
-    }
-  }  
+  private final Random random;
+
+  public TeamDraftInterleaving(Random random) {
+    this.random = random;
+  }
 
   public boolean supports(int numInterleaved) {
     return numInterleaved == 2;
@@ -61,7 +55,7 @@ public class TeamDraftInterleaving implements Interleaving{
     int indexA = 0, indexB = 0;
     
     while(interleavedResults.size()<topN && indexA<rerankedA.length && indexB<rerankedB.length){
-      if(teamA.size()<teamB.size() || (teamA.size()==teamB.size() && !RANDOM.nextBoolean())){
+      if(teamA.size()<teamB.size() || (teamA.size()==teamB.size() && !this.random.nextBoolean())){
         indexA = updateIndex(interleavedResults,indexA,rerankedA);
         interleavedResults.add(rerankedA[indexA]);
         teamA.add(rerankedA[indexA].doc);
@@ -93,7 +87,4 @@ public class TeamDraftInterleaving implements Interleaving{
     return index;
   }
 
-  public static void setRANDOM(Random RANDOM) {
-    TeamDraftInterleaving.RANDOM = RANDOM;
-  }
 }

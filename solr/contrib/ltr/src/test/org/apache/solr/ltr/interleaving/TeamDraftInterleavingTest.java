@@ -39,8 +39,7 @@ public class TeamDraftInterleavingTest {
   
   @Before
   public void setup() {
-    toTest = new TeamDraftInterleaving();
-    TeamDraftInterleaving.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
+    toTest = new TeamDraftInterleaving(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
   }
 
   protected void initDifferentOrderRerankLists() {

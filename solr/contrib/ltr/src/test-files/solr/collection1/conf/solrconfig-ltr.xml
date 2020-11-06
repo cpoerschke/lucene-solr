@@ -27,7 +27,7 @@
 
  <!-- Query parser used to rerank top docs with a provided model -->
  <queryParser name="ltr"
-  class="org.apache.solr.ltr.search.LTRQParserPlugin" />
+  class="org.apache.solr.ltr.search.LTRQParserTestPlugin" /> <!-- LTRQParserTestPlugin extends LTRQParserPlugin for predictable randomness in tests. -->
 
  <query>
   <filterCache class="solr.CaffeineCache" size="4096"

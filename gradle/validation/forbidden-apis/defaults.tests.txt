@@ -13,7 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-java.util.Random#<init>() @ Use RandomizedRunner's random() instead
+#java.util.Random#<init>() @ Use RandomizedRunner's random() instead
 java.lang.Math#random() @ Use RandomizedRunner's random().nextDouble() instead
 
 # TODO: fix tests that do this!

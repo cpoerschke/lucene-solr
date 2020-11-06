@@ -20,8 +20,8 @@ import java.util.Random;
 
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.ltr.feature.SolrFeature;
-import org.apache.solr.ltr.interleaving.TeamDraftInterleaving;
 import org.apache.solr.ltr.model.LinearModel;
+import org.apache.solr.ltr.search.LTRQParserTestPlugin;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -155,7 +155,7 @@ public class TestLTRQParserExplain extends TestRerankBase {
 
   @Test
   public void interleavingModels_shouldReturnExplainForTheModelPicked() throws Exception {
-    TeamDraftInterleaving.setRANDOM(new Random(10));//Random Boolean Choices Generation from Seed: [1,0]
+    LTRQParserTestPlugin.setRANDOM(new Random(10));//Random Boolean Choices Generation from Seed: [1,0]
 
     loadFeature("featureA1", SolrFeature.class.getName(),
         "{\"fq\":[\"{!terms f=popularity}1\"]}");
@@ -236,7 +236,7 @@ public class TestLTRQParserExplain extends TestRerankBase {
 
   @Test
   public void interleavingModelsWithOriginalRanking_shouldReturnExplainForTheModelPicked() throws Exception {
-    TeamDraftInterleaving.setRANDOM(new Random(10));//Random Boolean Choices Generation from Seed: [1,0]
+    LTRQParserTestPlugin.setRANDOM(new Random(10));//Random Boolean Choices Generation from Seed: [1,0]
 
     loadFeature("featureA1", SolrFeature.class.getName(),
         "{\"fq\":[\"{!terms f=popularity}1\"]}");

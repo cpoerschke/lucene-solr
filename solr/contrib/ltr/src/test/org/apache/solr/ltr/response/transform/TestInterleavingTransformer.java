@@ -21,8 +21,8 @@ import java.util.Random;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.ltr.TestRerankBase;
 import org.apache.solr.ltr.feature.SolrFeature;
-import org.apache.solr.ltr.interleaving.TeamDraftInterleaving;
 import org.apache.solr.ltr.model.LinearModel;
+import org.apache.solr.ltr.search.LTRQParserTestPlugin;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -81,7 +81,7 @@ public class TestInterleavingTransformer extends TestRerankBase {
 
   @Test
   public void interleavingTransformer_shouldReturnInterleavingPickInTheResults() throws Exception {
-    TeamDraftInterleaving.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
+    LTRQParserTestPlugin.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
     loadFeaturesAndModelsForInterleaving();
 
     final SolrQuery query = new SolrQuery();
@@ -119,7 +119,7 @@ public class TestInterleavingTransformer extends TestRerankBase {
 
   @Test
   public void interleavingTransformerWithOriginalRanking_shouldReturnInterleavingPickInTheResults() throws Exception {
-    TeamDraftInterleaving.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
+    LTRQParserTestPlugin.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
     loadFeaturesAndModelsForInterleaving();
 
     final SolrQuery query = new SolrQuery();
@@ -161,7 +161,7 @@ public class TestInterleavingTransformer extends TestRerankBase {
 
   @Test
   public void interleavingTransformer_shouldBeCompatibleWithFeatureTransformer() throws Exception {
-    TeamDraftInterleaving.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
+    LTRQParserTestPlugin.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
     loadFeaturesAndModelsForInterleaving();
 
     final SolrQuery query = new SolrQuery();
@@ -205,7 +205,7 @@ public class TestInterleavingTransformer extends TestRerankBase {
 
   @Test
   public void interleavingTransformerWithOriginalRanking_shouldBeCompatibleWithFeatureTransformer() throws Exception {
-    TeamDraftInterleaving.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
+    LTRQParserTestPlugin.setRANDOM(new Random(10101010));//Random Boolean Choices Generation from Seed: [0,1,1]
     loadFeaturesAndModelsForInterleaving();
 
     final SolrQuery query = new SolrQuery();
@@ -252,7 +252,7 @@ public class TestInterleavingTransformer extends TestRerankBase {
 
     int[] nullFeatureVectorIndexes = new int[]{1, 2, 4};
     for (int index : nullFeatureVectorIndexes) {
-      TeamDraftInterleaving.setRANDOM(new Random(10101010));
+      LTRQParserTestPlugin.setRANDOM(new Random(10101010));
       String[] nullFeatureVectorTests = new String[1];
       try {
         nullFeatureVectorTests[0] = "/response/docs/[" + index + "]/features==";
