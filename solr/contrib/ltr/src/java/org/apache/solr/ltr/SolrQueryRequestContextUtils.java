@@ -47,8 +47,19 @@ public class SolrQueryRequestContextUtils {
 
   /** scoring query accessors **/
 
+  @Deprecated // will be removed from Solr 9.0 onwards
+  public static void setScoringQuery(SolrQueryRequest req, LTRScoringQuery scoringQuery) {
+    setScoringQueries(req, new LTRScoringQuery[] { scoringQuery });
+  }
+
   public static void setScoringQueries(SolrQueryRequest req, LTRScoringQuery[] scoringQueries) {
     req.getContext().put(SCORING_QUERIES, scoringQueries);
+  }
+
+  @Deprecated // will be removed from Solr 9.0 onwards
+  public static LTRScoringQuery getScoringQuery(SolrQueryRequest req) {
+    final LTRScoringQuery[] scoringQueries = getScoringQueries(req);
+    return (scoringQueries == null ? null : scoringQueries[0]);
   }
 
   public static LTRScoringQuery[] getScoringQueries(SolrQueryRequest req) {
