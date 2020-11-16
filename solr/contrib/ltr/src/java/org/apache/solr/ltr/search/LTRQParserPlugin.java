@@ -224,5 +224,12 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
       }
     }
   }
-  
+
+  @Deprecated // will be removed from Solr 9.0 onwards
+  public class LTRQuery extends org.apache.solr.ltr.search.LTRQuery {
+    public LTRQuery(LTRScoringQuery scoringQuery, int reRankDocs) {
+      super(scoringQuery, reRankDocs);
+    }
+  }
+
 }
