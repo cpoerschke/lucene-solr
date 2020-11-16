@@ -161,6 +161,13 @@ public class LTRRescorer extends Rescorer {
     return hits;
   }
 
+  @Deprecated  // will be removed from Solr 9.0 onwards
+  public void scoreFeatures(IndexSearcher indexSearcher, TopDocs firstPassTopDocs,
+      int topN, LTRScoringQuery.ModelWeight modelWeight, ScoreDoc[] hits, List<LeafReaderContext> leaves,
+      ScoreDoc[] reranked) throws IOException {
+    scoreFeatures(indexSearcher, topN, modelWeight, hits, leaves, reranked);
+  }
+
   public void scoreFeatures(IndexSearcher indexSearcher,
                             int topN, LTRScoringQuery.ModelWeight modelWeight, ScoreDoc[] hits, List<LeafReaderContext> leaves,
                             ScoreDoc[] reranked) throws IOException {
