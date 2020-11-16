@@ -55,7 +55,6 @@ import org.apache.solr.util.SolrPluginUtils;
  */
 public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAware, ManagedResourceObserver {
   public static final String NAME = "ltr";
-  private static final String ORIGINAL_RANKING = "_OriginalRanking_";
 
   // params for setting custom external info that features can use, like query
   // intent
@@ -77,6 +76,12 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
    * to rerank
    **/
   public static final String RERANK_DOCS = "reRankDocs";
+
+  /** query parser plugin: default 'original ranking' model identifier **/
+  public static final String DEFAULT_ORIGINAL_RANKING_MODEL = "_OriginalRanking_";
+
+  /** query parser plugin: the name of the attribute for setting the 'original ranking' model identifier **/
+  public static final String ORIGINAL_RANKING_MODEL = "originalRankingModel";
 
   @Override
   @SuppressWarnings({"unchecked"})
@@ -154,6 +159,11 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
         throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
             "Must provide one or two models in the request");
       }
+      final String originalRankingModel = localParams.get(ORIGINAL_RANKING_MODEL, DEFAULT_ORIGINAL_RANKING_MODEL);
+      if (modelNames.length==1 && originalRankingModel.equals(modelNames[0])) {
+        throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
+            "model=" + originalRankingModel + " can only be used when interleaving");
+      }
       final boolean isInterleaving = (modelNames.length > 1);
       final boolean extractFeatures = SolrQueryRequestContextUtils.isExtractingFeatures(req);
       final String tranformerFeatureStoreName = SolrQueryRequestContextUtils.getFvStoreName(req);
@@ -166,7 +176,7 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
           throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
               "the " + LTRQParserPlugin.MODEL + " "+ i +" is empty");
         }
-        if (!ORIGINAL_RANKING.equals(modelNames[i])) {
+        if (!originalRankingModel.equals(modelNames[i])) {
           final LTRScoringModel ltrScoringModel = mr.getModel(modelNames[i]);
           if (ltrScoringModel == null) {
             throw new SolrException(SolrException.ErrorCode.BAD_REQUEST,
@@ -193,7 +203,7 @@ public class LTRQParserPlugin extends QParserPlugin implements ResourceLoaderAwa
             rerankingQuery.setFeatureLogger( SolrQueryRequestContextUtils.getFeatureLogger(req) );
           }
         }else{
-          rerankingQuery = rerankingQueries[i] = new OriginalRankingLTRScoringQuery(ORIGINAL_RANKING);
+          rerankingQuery = rerankingQueries[i] = new OriginalRankingLTRScoringQuery(originalRankingModel);
         }
 
         // External features

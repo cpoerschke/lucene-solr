@@ -52,6 +52,37 @@ public class TestLTRQParserPlugin extends TestRerankBase {
   }
 
   @Test
+  public void nonInterleavingOriginalRankingModelIdTest() throws Exception {
+    final String solrQuery = "_query_:{!edismax qf='title' mm=100% v='bloomberg' tie=0.1}";
+    final SolrQuery query = new SolrQuery();
+    query.setQuery(solrQuery);
+    query.add("fl", "*, score");
+    query.add("rows", "4");
+    query.add("fv", "true");
+    {
+      query.remove("rq");
+      query.add("rq", "{!ltr model=_OriginalRanking_ reRankDocs=100}");
+
+      final String res = restTestHarness.query("/query" + query.toQueryString());
+      assert (res.contains("model=_OriginalRanking_ can only be used when interleaving"));
+    }
+    {
+      query.remove("rq");
+      query.add("rq", "{!ltr model=foobar originalRankingModel=foobar reRankDocs=100}");
+
+      final String res = restTestHarness.query("/query" + query.toQueryString());
+      assert (res.contains("model=foobar can only be used when interleaving"));
+    }
+    {
+      query.remove("rq");
+      query.add("rq", "{!ltr model=_OriginalRanking_ originalRankingModel=foobar reRankDocs=100}");
+
+      final String res = restTestHarness.query("/query" + query.toQueryString());
+      assert (res.contains("cannot find model _OriginalRanking_"));
+    }
+  }
+
+  @Test
   public void interleavingLtrTooManyModelsTest() throws Exception {
     final String solrQuery = "_query_:{!edismax qf='title' mm=100% v='bloomberg' tie=0.1}";
     final SolrQuery query = new SolrQuery();
